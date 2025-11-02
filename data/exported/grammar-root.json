@@ -1,0 +1,244 @@
+{
+  "schedule": {
+    "pattern_definition": {
+      "description": "заголовок с указанием факультета и вся таблица с расписанием",
+      "kind": "area",
+      "root": true,
+      "count_in_document": 1
+    },
+    "location": null,
+    "inner": "title",
+    "outer": null
+  },
+  "title": {
+    "pattern_definition": {
+      "pattern": "schedule_title"
+    },
+    "location": null,
+    "inner": null,
+    "outer": null
+  },
+  "schedule_title": {
+    "pattern_definition": {
+      "description": "заголовок с указанием факультета, курса и года",
+      "kind": "cell",
+      "size": "8+ x 1",
+      "count_in_document": 1,
+      "style": {
+        "borders": "none"
+      },
+      "content_type": "schedule_title"
+    },
+    "location": null,
+    "inner": null,
+    "outer": null
+  },
+  "schedule_table": {
+    "pattern_definition": {
+      "description": "вся таблица с расписанием",
+      "kind": "area",
+      "count_in_document": 1
+    },
+    "location": null,
+    "inner": "groups",
+    "outer": null
+  },
+  "groups": {
+    "pattern_definition": {
+      "kind": "array",
+      "direction": "row",
+      "description": "ряд учебных групп в заголовке",
+      "item_pattern": "group",
+      "item_count": "1+"
+    },
+    "location": "left, right, top, bottom",
+    "inner": null,
+    "outer": null
+  },
+  "groups_header": {
+    "pattern_definition": {
+      "pattern": "groups_header"
+    },
+    "location": null,
+    "inner": null,
+    "outer": null
+  },
+  "group": {
+    "pattern_definition": {
+      "pattern": "group_in_header"
+    },
+    "location": "[object Object], [object Object], [object Object]",
+    "inner": null,
+    "outer": null
+  },
+  "group_in_header": {
+    "pattern_definition": {
+      "description": "группа в заголовке",
+      "kind": "area"
+    },
+    "location": null,
+    "inner": "group",
+    "outer": "groups_header"
+  },
+  "weeks_calendar": {
+    "pattern_definition": {
+      "description": "левый заголовок таблицы с днями и часами",
+      "kind": "area",
+      "size": "5+ x 59+",
+      "style": {
+        "borders": "left, top, bottom"
+      }
+    },
+    "location": null,
+    "inner": "month_names",
+    "outer": null
+  },
+  "month_names": {
+    "pattern_definition": {
+      "kind": "array",
+      "direction": "row",
+      "item_pattern": "month_name",
+      "item_count": "3..5"
+    },
+    "location": "top, [object Object], [object Object]",
+    "inner": null,
+    "outer": null
+  },
+  "month_name": {
+    "pattern_definition": {
+      "description": "название месяца",
+      "kind": "cell",
+      "size": "1 x 1",
+      "content_type": "month_name"
+    },
+    "location": null,
+    "inner": null,
+    "outer": null
+  },
+  "week_datetime": {
+    "pattern_definition": {
+      "description": "информация по дням и часам за одну неделю",
+      "kind": "area",
+      "size": "5+ x 28+",
+      "style": {
+        "borders": "all"
+      }
+    },
+    "location": null,
+    "inner": "days",
+    "outer": null
+  },
+  "days": {
+    "pattern_definition": {
+      "kind": "array",
+      "direction": "column",
+      "item_pattern": "day_datetime",
+      "item_count": "5..6"
+    },
+    "location": "top, [object Object], [object Object]",
+    "inner": null,
+    "outer": null
+  },
+  "day_datetime": {
+    "pattern_definition": {
+      "description": "информация по часам и датам за один день недели",
+      "kind": "area",
+      "size": "5+ x 4+",
+      "style": {
+        "borders": "all"
+      }
+    },
+    "location": null,
+    "inner": "week_day",
+    "outer": null
+  },
+  "week_day": {
+    "pattern_definition": {
+      "pattern": "week_day"
+    },
+    "location": null,
+    "inner": null,
+    "outer": null
+  },
+  "hour_range": {
+    "pattern_definition": {
+      "kind": "cell",
+      "size": "1 x 2+",
+      "content_type": "hour_range"
+    },
+    "location": null,
+    "inner": "hour_range",
+    "outer": "week_day"
+  },
+  "month_days": {
+    "pattern_definition": {
+      "kind": "array",
+      "item_pattern": "month_day",
+      "direction": "fill",
+      "gap": "5-"
+    },
+    "location": null,
+    "inner": "month_days",
+    "outer": "week_day"
+  },
+  "month_day": {
+    "pattern_definition": {
+      "kind": "cell",
+      "size": "1 x 2+",
+      "content_type": "month_day"
+    },
+    "location": null,
+    "inner": "month_day",
+    "outer": "week_day"
+  },
+  "timetable_grid": {
+    "pattern_definition": {
+      "kind": "array",
+      "description": "все занятия",
+      "direction": "fill",
+      "item_pattern": "lesson",
+      "gap": "0+",
+      "item_count": "1+"
+    },
+    "location": null,
+    "inner": null,
+    "outer": null
+  },
+  "teacher": {
+    "pattern_definition": {
+      "description": "преподаватель",
+      "kind": "cell",
+      "content_type": "teacher"
+    },
+    "location": null,
+    "inner": null,
+    "outer": null
+  },
+  "room": {
+    "pattern_definition": {
+      "description": "аудитория",
+      "kind": "cell",
+      "content_type": "room"
+    },
+    "location": null,
+    "inner": null,
+    "outer": null
+  },
+  "discipline": {
+    "pattern_definition": {
+      "pattern": "discipline"
+    },
+    "location": "top, left, right",
+    "inner": null,
+    "outer": null
+  },
+  "lesson": {
+    "pattern_definition": {
+      "description": "занятие",
+      "kind": "area"
+    },
+    "location": null,
+    "inner": "discipline",
+    "outer": "group"
+  }
+}

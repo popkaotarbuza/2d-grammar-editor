@@ -285,4 +285,3 @@ const App = () => {
 };
 
 export { App };
-
