@@ -1,39 +1,60 @@
 {
-  "groups_header": {
-    "pattern_definition": {
-      "description": "заголовок с группами",
-      "kind": "area",
-      "count_in_document": "1..2",
-      "size": "4+ x 1..2",
-      "style": {
-        "borders": "all"
+  "teacher": {
+    "kind": "cell",
+    "size": null,
+    "inner": {},
+    "outer": {},
+    "description": "преподаватель",
+    "content_type": "teacher"
+  },
+  "room": {
+    "kind": "cell",
+    "size": null,
+    "inner": {},
+    "outer": {},
+    "description": "аудитория",
+    "content_type": "room"
+  },
+  "discipline": {
+    "kind": "cell",
+    "size": null,
+    "inner": {},
+    "outer": {},
+    "description": "дисциплина",
+    "content_type": "discipline"
+  },
+  "lesson": {
+    "kind": "area",
+    "size": null,
+    "inner": {
+      "discipline": {
+        "pattern": "discipline",
+        "location": {
+          "top": "0",
+          "left": "0",
+          "right": "0"
+        }
+      },
+      "teacher": {
+        "pattern": "teacher",
+        "location": {
+          "top": "1+",
+          "left": "0..4",
+          "right": "0+",
+          "bottom": "0..1"
+        }
+      },
+      "room": {
+        "pattern": "room",
+        "location": {
+          "top": "1+",
+          "right": "0..3",
+          "left": "0+",
+          "bottom": "0..2"
+        }
       }
     },
-    "location": null,
-    "inner": "groups",
-    "outer": null
-  },
-  "groups": {
-    "pattern_definition": {
-      "kind": "array",
-      "direction": "row",
-      "description": "ряд учебных групп в заголовке",
-      "item_pattern": "group",
-      "item_count": "1+"
-    },
-    "location": "left, right, top, bottom",
-    "inner": null,
-    "outer": null
-  },
-  "group": {
-    "pattern_definition": {
-      "description": "учебная группа",
-      "kind": "cell",
-      "size": "4+ x 1..2",
-      "content_type": "group"
-    },
-    "location": null,
-    "inner": null,
-    "outer": null
+    "outer": {},
+    "description": "занятие"
   }
 }

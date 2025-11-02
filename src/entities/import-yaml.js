@@ -1,7 +1,10 @@
 // импорт данных из YAML файлов
 import { parse } from 'yaml';
+import { readFileSync } from 'fs';
 
-import { yamlContent, fileName } from './file-from-console.js';
+const pathToFile = '../../data/to-import/';
+const fileName = "grammar-root";
+const yamlContent = readFileSync(pathToFile + fileName + '.yaml', 'utf8');
 
 const rawYaml = parse(yamlContent);
 console.log("Исходный YAML\n", rawYaml);
@@ -16,47 +19,88 @@ function extractPatterns(yamlData, patterns = {}) {
 
         // Создаём паттерн с 4 обязательными полями
         patterns[name] = {
-        pattern_definition: {},
-        location: null,
-        inner: null,
-        outer: null
+            kind: null,
+            size: null,
+            inner: { }, // для  pattern: , location: для каждого дочернего паттерна
+            outer: { }
         };
 
-        let currentObj = properties;
-        let currentKey = null;
-
-        // Если pattern_definition прямо в properties
+        // === ПЕРВЫЙ ПРОХОД: kind + pattern_definition
         if ('pattern_definition' in properties) {
-        patterns[name].pattern_definition = { ...properties.pattern_definition };
-        delete properties.pattern_definition;
-        currentObj = properties;
+            let item_pattern_value = null;
+            let hasArrayKind = false;
+
+            const def = properties.pattern_definition;
+
+            for (const [k, v] of Object.entries(def)) {
+                if (k === 'kind') {
+                    patterns[name].kind = v;
+                    if (v === 'array') {
+                        hasArrayKind = true;
+                    }
+                } else if (hasArrayKind && k === 'item_pattern') {
+                    item_pattern_value = v;
+                } else {
+                    patterns[name][k] = v; // выносим на верхний уровень
+                }
+            }
+            patterns[name].item_pattern = item_pattern_value;
         }
 
-        // Обходим свойства: ищем inner, outer, location
+        // === ВТОРОЙ ПРОХОД: Обходим свойства inner, outer, location
         for (const [key, value] of Object.entries(properties)) {
             if (key === 'inner' || key === 'outer') {
-                // Рекурсивно обрабатываем дочерний паттерн
-                const childName = Object.keys(value)[0]; // например, "groups"
-                const childProps = value[childName];
+                const container = patterns[name][key];
 
-                // Рекурсия: создаём дочерний паттерн
-                extractPatterns({ [childName]: childProps }, patterns);
+                for (const [childName, childProps] of Object.entries(value)) {
+                    // Добавляем в container
+                    container[childName] = {
+                        pattern: null,
+                        location: null
+                    };
 
-                // Ссылка: inner: "groups" или outer: "groups"
-                patterns[name][key] = childName;
+                    if (childProps.pattern !== undefined) {
+                        container[childName].pattern = childProps.pattern;
+                    }
 
-                // Если в дочернем есть location — переносим в родителя? Нет, оставляем в дочернем.
-                // Но если location в родителе — он остаётся.
-            } else if (key === 'location') {
-                // location → всегда строка
-                if (Array.isArray(value)) {
-                patterns[name].location = value.join(', ');
-                } else if (typeof value === 'string') {
-                patterns[name].location = value;
+                    // === НОРМАЛИЗАЦИЯ location ===
+                    if (childProps.location !== undefined) {
+                        const loc = childProps.location;
+                        const result = {};
+
+                        if (Array.isArray(loc)) {
+                            for (const item of loc) {
+                                if (typeof item === 'string') {
+                                    result[item.toLowerCase()] = '0';
+                                } else if (typeof item === 'object') {
+                                    for (const [k, v] of Object.entries(item)) {
+                                        result[k] = String(v);
+                                    }
+                                }
+                            }
+                        } else if (typeof loc === 'object') {
+                            for (const [k, v] of Object.entries(loc)) {
+                                result[k] = String(v);
+                            }
+                        } else if (typeof loc === 'string') {
+                            const parts = loc.split(',').map(s => s.trim());
+                            for (const p of parts) {
+                                const [side, val] = p.split(':').map(s => s.trim());
+                                result[side] = val || '0';
+                            }
+                        }
+
+                        container[childName].location = result;
+                    }
+
+                    // === РЕКУРСИЯ: если у дочернего есть pattern_definition или pattern ===
+                    if ('pattern_definition' in childProps) {
+                        extractPatterns({ [childName]: childProps }, patterns);
+                    }
                 }
-            } else {
-                // Все остальные поля (size, style, count_in_document) → в pattern_definition
-                patterns[name].pattern_definition[key] = value;
+            } else if (key !== 'pattern_definition' && key !== 'item_pattern' && key !== 'location' && key !== 'pattern') {
+                // Все остальные поля (style, count_in_document и тд) на верхний ровень
+                patterns[name][key] = value;
             }
         }
     }
