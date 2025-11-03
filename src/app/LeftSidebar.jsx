@@ -24,13 +24,39 @@ const LeftSidebar = ({ patterns, selectedPatternId, selectedComponentId, onSelec
                             padding: '15px',
                         }}
                     >
-                        <div style={{
-                            fontWeight: 'bold',
-                            marginBottom: '12px',
-                            fontSize: '18px',
-                            color: '#333',
-                        }}>
-                            Паттерн {index + 1}
+                        <div 
+                            style={{
+                                fontWeight: 'bold',
+                                marginBottom: '12px',
+                                fontSize: '18px',
+                                color: '#333',
+                                cursor: (!pattern.components || Object.keys(pattern.components).length === 0) ? 'pointer' : 'default',
+                                padding: '4px',
+                                borderRadius: '4px',
+                                backgroundColor: (!pattern.components || Object.keys(pattern.components).length === 0) && isPatternSelected
+                                    ? '#D72B00'
+                                    : 'transparent',
+                                color: (!pattern.components || Object.keys(pattern.components).length === 0) && isPatternSelected
+                                    ? '#ffffff'
+                                    : '#333',
+                            }}
+                            onClick={() => {
+                                if (!pattern.components || Object.keys(pattern.components).length === 0) {
+                                    onSelectPattern && onSelectPattern(patternId, null);
+                                }
+                            }}
+                            onMouseEnter={(e) => {
+                                if ((!pattern.components || Object.keys(pattern.components).length === 0) && !isPatternSelected) {
+                                    e.target.style.backgroundColor = '#f5f5f5';
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if ((!pattern.components || Object.keys(pattern.components).length === 0) && !isPatternSelected) {
+                                    e.target.style.backgroundColor = 'transparent';
+                                }
+                            }}
+                        >
+                            {pattern.name || `Паттерн ${index + 1}`}
                         </div>
                         <div>
                             {pattern.components && Object.keys(pattern.components).map((componentId, compIndex) => {
@@ -67,16 +93,6 @@ const LeftSidebar = ({ patterns, selectedPatternId, selectedComponentId, onSelec
                                     </div>
                                 );
                             })}
-                            {(!pattern.components || Object.keys(pattern.components).length === 0) && (
-                                <div style={{
-                                    padding: '8px 12px',
-                                    color: '#999',
-                                    fontStyle: 'italic',
-                                    fontSize: '14px',
-                                }}>
-                                    Нет компонентов
-                                </div>
-                            )}
                         </div>
                     </div>
                 );
