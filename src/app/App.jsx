@@ -1,15 +1,38 @@
 import { Stage, Layer, Rect, Transformer } from "react-konva";
+import Konva from "konva";
 import { useState, useEffect, useRef } from "react";
 import { DefaultInput } from './default-input.jsx';
 import { DefaultRectangle } from './default-rectangle.jsx';
 import { getClientRect } from "./getClientRect.js";
+import { Header } from './Header.jsx';
+import { LeftSidebar } from './LeftSidebar.jsx';
+import { RightSidebar } from './RightSidebar.jsx';
 
 const App = () => {
-  const [stageSize, setStageSize] = useState({
-      width: window.innerWidth - 1000,
-      height: window.innerHeight - 200,
-    });
+  const calculateStageSize = () => {
+    const leftSidebarWidth = 250;
+    const rightSidebarWidth = 300;
+    const centralPadding = 40; // padding центральной области (20px с каждой стороны)
+    const headerHeight = 80;
+    const verticalPadding = 80; // padding сверху и снизу центральной области
+    
+    const availableWidth = window.innerWidth - leftSidebarWidth - rightSidebarWidth - centralPadding;
+    const availableHeight = window.innerHeight - headerHeight - verticalPadding;
+    
+    return {
+      width: Math.max(400, Math.floor(availableWidth)),
+      height: Math.max(400, Math.floor(availableHeight)),
+    };
+  };
 
+  const [stageSize, setStageSize] = useState(calculateStageSize());
+
+    const [fileName, setFileName] = useState('');
+
+    const [patterns, setPatterns] = useState({});
+    const [selectedPatternId, setSelectedPatternId] = useState(null);
+    const [selectedComponentId, setSelectedComponentId] = useState(null);
+    const [selectedPattern, setSelectedPattern] = useState(null);
 
     const [blocks, setBlocks] = useState([]);
 
@@ -25,6 +48,16 @@ const App = () => {
     const isSelecting = useRef(false);
     const transformerRef = useRef();
     const rectRefs = useRef(new Map());
+
+    // Update stage size on window resize
+    useEffect(() => {
+      const handleResize = () => {
+        setStageSize(calculateStageSize());
+      };
+
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Update transformer when selection changes
     useEffect(() => {
@@ -199,28 +232,173 @@ const App = () => {
       return newBox;
     };
 
+    // File operations handlers
+    const handleOpen = (content, name) => {
+      if (content.patterns) {
+        setPatterns(content.patterns);
+      } else if (content.blocks) {
+        setBlocks(content.blocks);
+      }
+      if (name) {
+        setFileName(name.replace(/\.(json|yaml)$/, ''));
+      }
+    };
+
+    const handleSave = () => {
+      const data = {
+        patterns: patterns,
+        blocks: blocks,
+        fileName: fileName || 'untitled',
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName || 'untitled'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+
+    const handleSaveAs = () => {
+      const name = prompt('Введите название файла:', fileName || 'untitled');
+      if (name) {
+        setFileName(name);
+        const data = {
+          patterns: patterns,
+          blocks: blocks,
+          fileName: name,
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${name}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    };
+
+    const handleExport = () => {
+      const data = {
+        patterns: patterns,
+        blocks: blocks,
+        fileName: fileName || 'untitled',
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName || 'export'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+
+    // Pattern handlers
+    const handleSelectPattern = (patternId, componentId) => {
+      setSelectedPatternId(patternId);
+      setSelectedComponentId(componentId);
+      const pattern = patterns[patternId];
+      if (pattern) {
+        setSelectedPattern({
+          ...pattern,
+          id: patternId,
+          name: patternId,
+          selectedComponentId: componentId,
+        });
+      }
+    };
+
+    const handleUpdatePattern = (updatedPattern) => {
+      setSelectedPattern(updatedPattern);
+    };
+
+    const handleSavePattern = (patternData) => {
+      if (patternData.id) {
+        setPatterns(prev => ({
+          ...prev,
+          [patternData.id]: {
+            ...prev[patternData.id],
+            components: patternData.components,
+          }
+        }));
+        setSelectedPattern(patternData);
+      }
+    };
+
+    const handleCancelPattern = () => {
+      if (selectedPatternId) {
+        const pattern = patterns[selectedPatternId];
+        if (pattern) {
+          setSelectedPattern({
+            ...pattern,
+            id: selectedPatternId,
+            name: selectedPatternId,
+          });
+        }
+      }
+    };
+
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '500px', gap: '10px', paddingTop: '10px', paddingBottom: '10px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100vh', backgroundColor: '#ffffff' }}>
+        <Header
+          onOpen={handleOpen}
+          onSave={handleSave}
+          onSaveAs={handleSaveAs}
+          onExport={handleExport}
+          fileName={fileName}
+          onFileNameChange={setFileName}
+        />
+        <div style={{ display: 'flex', flexDirection: 'row', flex: 1, overflow: 'hidden', backgroundColor: '#ffffff', minWidth: 0 }}>
+          <LeftSidebar
+            patterns={patterns}
+            selectedPatternId={selectedPatternId}
+            selectedComponentId={selectedComponentId}
+            onSelectPattern={handleSelectPattern}
+          />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px', gap: '10px', overflow: 'auto', minWidth: 0 }}>
         <button
           onClick={() => {
-            setBlocks(prev => [
+            const newId = `pattern_${Date.now()}`;
+            const firstComponentId = `component_${Date.now()}`;
+            const newPattern = {
+              name: `Паттерн ${Object.keys(patterns).length + 1}`,
+              description: '',
+              kind: 'area',
+              components: {
+                [firstComponentId]: {
+                  description: '',
+                  kind: 'area',
+                  size: '',
+                }
+              },
+            };
+            setPatterns(prev => ({
               ...prev,
-              {
-                id: (blocks.length + 1).toString(),
-                text: 'Паттерн ' + (blocks.length + 1).toString(),
-              }
-            ])}}>
-              Добавить новый паттерн
-        </button>
-
-        <DefaultInput
-          value={blocks.find(b => b.id === selectedIds[0])?.text || ''}
-          onChange={(e) => {
-            const id = selectedIds[0];
-            setBlocks(prev => prev.map(b => b.id === id ? { ...b, text: e.target.value } : b));
+              [newId]: newPattern,
+            }));
+            setSelectedPatternId(newId);
+            handleSelectPattern(newId, firstComponentId);
           }}
-          placeholder="Введите текст"
-        />
+          style={{
+            backgroundColor: '#D72B00',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '10px 20px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            fontWeight: '500',
+            marginBottom: '10px',
+          }}
+        >
+          Добавить новый паттерн
+        </button>
 
         <Stage
           width={stageSize.width}
@@ -229,7 +407,13 @@ const App = () => {
           onMousemove={handleMouseMove}
           onMouseup={handleMouseUp}
           onClick={handleStageClick}
-          style={{backgroundColor: '#777575ff', left: "200px"}}
+          style={{
+            backgroundColor: '#ffffff', 
+            border: '1px solid #ddd', 
+            borderRadius: '8px',
+            maxWidth: '100%',
+            maxHeight: '100%'
+          }}
         >
           <Layer>
             
@@ -257,10 +441,10 @@ const App = () => {
               ref={transformerRef}
               onDragMove={handleTransformerDrag}
               rotateEnabled={true}
-              borderStroke="#ff0000ff"
+              borderStroke="#D72B00"
               borderStrokeWidth={3}
               anchorFill="#fff"
-              anchorStroke="#ff0000ff"
+              anchorStroke="#D72B00"
               anchorStrokeWidth={2}
               anchorSize={20}
               anchorCornerRadius={50}
@@ -281,6 +465,14 @@ const App = () => {
           </Layer>
         </Stage>
         </div>
+          <RightSidebar
+            selectedPattern={selectedPattern}
+            onUpdatePattern={handleUpdatePattern}
+            onSavePattern={handleSavePattern}
+            onCancelPattern={handleCancelPattern}
+          />
+        </div>
+      </div>
     );
 };
 
