@@ -24,7 +24,9 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
+  display: flex;                      /*justify-content и align-items дописаны для централизации окна*/
+  justify-content: center;
+  align-content:center;
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
