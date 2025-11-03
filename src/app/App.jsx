@@ -9,8 +9,8 @@ import './mainWindow.css';
 const App = () => {
   // Состояние для размеров сцены (stage), инициализируется на основе размеров окна браузера с отступами
   const [stageSize, setStageSize] = useState({
-      width: window.innerWidth - 650,                // какого-то хуя ширину экрана мы регулируем здесь
-      height: window.innerHeight - 150,               // какого-то хуя высоту экрана мы регулируем здесь
+      width: window.innerWidth - 740,                // какого-то хуя ширину экрана мы регулируем здесь
+      height: window.innerHeight - 135,               // какого-то хуя высоту экрана мы регулируем здесь
     });
 
   // Состояние для списка блоков (прямоугольников), каждый блок имеет id и текст (по умолчанию без координат и размеров)
@@ -245,8 +245,8 @@ const App = () => {
                     text: 'Паттерн ' + (prev.length + 1).toString(),
                     x: 0,
                     y: 0,
-                    width: 300,
-                    height: 150,
+                    width: 100,
+                    height: 70,
                   }
                 ]);
               }}
@@ -289,28 +289,18 @@ const App = () => {
                   }}
                 />
               </Layer>
-                  {/* Новый слой для границы запрещённой зоны (правый нижний угол 2/3) */}
-              <Layer listening={false}>
-                  {/* Горизонтальная линия границы: y = stageH / 3, от x = stageW / 3 до stageW */}
-                  <Line
-                      points={[
-                          stageSize.width / 3, stageSize.height / 3,
-                          stageSize.width, stageSize.height / 3
-                      ]}
-                      stroke="red"
-                      strokeWidth={2}
-                      dash={[10, 5]} // Пунктир для стиля "границы"
-                  />
-                  {/* Вертикальная линия границы: x = stageW / 3, от y = stageH / 3 до stageH */}
-                  <Line
-                      points={[
-                          stageSize.width / 3, stageSize.height / 3,
-                          stageSize.width / 3, stageSize.height
-                      ]}
-                      stroke="red"
-                      strokeWidth={2}
-                      dash={[10, 5]} // Пунктир для стиля "границы"
-                  />
+                  {/* Новый слой для квадратной границы с отступами на 1/4 */}
+                <Layer listening={false}>
+                    {/* Квадратная рамка: отступ 1/4 от каждой стороны, но квадрат по мин. стороне */}
+                    <Rect
+                        x={(stageSize.width - stageSize.width / 1.5) / 2}
+                        y={(stageSize.height - stageSize.height / 1.5) / 2}
+                        width={stageSize.width / 1.5}
+                        height={stageSize.height / 1.5}
+                        stroke="black"
+                        strokeWidth={2}
+                        fillEnabled={false}
+                    />
                 </Layer>
               <Layer>
                   {/* Рендерим все прямоугольники */}

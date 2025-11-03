@@ -5,8 +5,8 @@ const DefaultExternalRectangle = ({
   id,
   x = 0,
   y = 0,
-  width = 300,
-  height = 150,
+  width = 100,
+  height = 70,
   text = 'Перемещай меня',
   fill = 'white',
   isSelected = false,
@@ -26,35 +26,48 @@ const DefaultExternalRectangle = ({
       draggable={isSelected}
       /*Функция для ограничения внешних паттернов (левая сторона+ верхняя сторона. Задана одна треть)*/
       dragBoundFunc={(pos) => {
-                const patternWidth = width;
-                const patternHeight = height;
-                const stageW = stageSize.width;
-                const stageH = stageSize.height;
+            const patternWidth = width;
+            const patternHeight = height;
+            const stageW = stageSize.width;
+            const stageH = stageSize.height;
 
-                const maxX = stageW - patternWidth;
-                const maxY = stageH - patternHeight;
-                const leftMax = stageW / 3 - patternWidth;
-                const topMax = stageH / 3 - patternHeight;
+            const bound = 1 / 6;
 
-                // Базовое ограничение по границам сцены
-                let newX = Math.max(0, Math.min(pos.x, maxX));
-                let newY = Math.max(0, Math.min(pos.y, maxY));
+            const maxX = stageW - patternWidth;
+            const maxY = stageH - patternHeight;
 
-                // Проверка на запрещённую область (нижне-правый угол за пределами "Г")
-                if (newX > leftMax && newY > topMax) {
-                    const xOvershoot = newX - leftMax;
-                    const yOvershoot = newY - topMax;
+            const leftLimit = stageW * bound - patternWidth;
+            const rightLimit = stageW - stageW * bound;
+            const topLimit = stageH * bound - patternHeight;
+            const bottomLimit = stageH - stageH * bound;
 
-                    // Ограничить измерение с меньшим перебором (для более плавного "снапа")
-                    if (xOvershoot <= yOvershoot) {
-                    newX = leftMax;
-                    } 
-                    else {
-                    newY = topMax;
-                    }
+            let newX = Math.max(0, Math.min(pos.x, maxX));
+            let newY = Math.max(0, Math.min(pos.y, maxY));
+
+            // Проверяем вертикальные полосы (левая или правая)
+            const inVerticalL = newX <= leftLimit || newX >= rightLimit;
+
+            // Проверяем горизонтальные полосы (верхняя или нижняя)
+            const inHorizontalL = newY <= topLimit || newY >= bottomLimit;
+
+            if (!inVerticalL && !inHorizontalL) {
+                // В запрещённой зоне — притягиваем к ближайшей линии
+                const deltaLeft = Math.abs(newX - leftLimit);
+                const deltaRight = Math.abs(newX - rightLimit);
+                const deltaTop = Math.abs(newY - topLimit);
+                const deltaBottom = Math.abs(newY - bottomLimit);
+
+                const minDeltaX = Math.min(deltaLeft, deltaRight);
+                const minDeltaY = Math.min(deltaTop, deltaBottom);
+
+                if (minDeltaX < minDeltaY) {
+                newX = deltaLeft < deltaRight ? leftLimit : rightLimit;
+                } else {
+                newY = deltaTop < deltaBottom ? topLimit : bottomLimit;
                 }
+            }
 
-                return { x: newX, y: newY };
+            return { x: newX, y: newY };
 }}
     >
       <Rect
