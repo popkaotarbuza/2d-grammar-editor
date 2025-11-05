@@ -1,5 +1,5 @@
 import React from 'react';
-import { Group, Rect, Text } from 'react-konva';
+import { Group, Rect } from 'react-konva';
 
 const DefaultExternalRectangle = ({
   id,
@@ -8,7 +8,7 @@ const DefaultExternalRectangle = ({
   width = 100,
   height = 70,
   text = 'Внешний паттерн',
-  fill = 'white',
+  fill = '#D9D9D9',
   isSelected = false,
   onSelect,
   onDragEnd,
@@ -44,8 +44,18 @@ const DefaultExternalRectangle = ({
     const stageW = stageSize.width;
     const stageH = stageSize.height;
 
-    let newX = Math.max(0, Math.min(pos.x, stageW - patternWidth));
-    let newY = Math.max(0, Math.min(pos.y, stageH - patternHeight));
+    // Строго ограничиваем границами сцены, чтобы паттерн полностью оставался внутри
+    // Убеждаемся, что весь паттерн помещается: x >= 0, x + width <= stageW
+    let newX = Math.max(0, Math.min(Math.max(0, pos.x), Math.max(0, stageW - patternWidth)));
+    let newY = Math.max(0, Math.min(Math.max(0, pos.y), Math.max(0, stageH - patternHeight)));
+
+    // Дополнительная проверка: убеждаемся, что правая и нижняя границы не выходят
+    if (newX + patternWidth > stageW) {
+      newX = Math.max(0, stageW - patternWidth);
+    }
+    if (newY + patternHeight > stageH) {
+      newY = Math.max(0, stageH - patternHeight);
+    }
 
     // Если паттерн пересекается с внутренней областью, сдвигаем его наружу
     if (intersectsInnerArea(newX, newY, patternWidth, patternHeight)) {
@@ -62,18 +72,26 @@ const DefaultExternalRectangle = ({
       const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
 
       if (minDist === distToLeft) {
-        newX = innerRectX - patternWidth;
+        newX = Math.max(0, innerRectX - patternWidth);
       } else if (minDist === distToRight) {
-        newX = innerRight;
+        newX = Math.min(Math.max(0, stageW - patternWidth), innerRight);
       } else if (minDist === distToTop) {
-        newY = innerRectY - patternHeight;
+        newY = Math.max(0, innerRectY - patternHeight);
       } else {
-        newY = innerBottom;
+        newY = Math.min(Math.max(0, stageH - patternHeight), innerBottom);
       }
 
-      // Проверяем границы сцены после сдвига
-      newX = Math.max(0, Math.min(newX, stageW - patternWidth));
-      newY = Math.max(0, Math.min(newY, stageH - patternHeight));
+      // Финальная строгая проверка границ сцены после сдвига
+      newX = Math.max(0, Math.min(newX, Math.max(0, stageW - patternWidth)));
+      newY = Math.max(0, Math.min(newY, Math.max(0, stageH - patternHeight)));
+      
+      // Дополнительная проверка правой и нижней границ
+      if (newX + patternWidth > stageW) {
+        newX = Math.max(0, stageW - patternWidth);
+      }
+      if (newY + patternHeight > stageH) {
+        newY = Math.max(0, stageH - patternHeight);
+      }
     }
 
     return { x: newX, y: newY };
@@ -88,7 +106,7 @@ const DefaultExternalRectangle = ({
       name="rect"
       onClick={onSelect}
       onTap={onSelect}
-      draggable={isSelected}
+      draggable={true}
       dragBoundFunc={dragBoundFunc}
       onDragEnd={onDragEnd}
     >
@@ -97,19 +115,8 @@ const DefaultExternalRectangle = ({
         height={height}
         fill={fill}
         cornerRadius={8}
-        shadowColor="black"
-        shadowBlur={10}
-        shadowOpacity={0.2}
-      />
-      <Text
-        width={width}
-        height={height}
-        text={text}
-        fontSize={24}
-        fontStyle="bold"
-        fill={isSelected ? 'red' : 'black'}
-        align="center"
-        verticalAlign="middle"
+        stroke="#949494"
+        strokeWidth={1}
       />
     </Group>
   );

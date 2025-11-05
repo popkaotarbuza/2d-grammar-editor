@@ -54,25 +54,28 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
     return (
         <div style={{
             width: '100%',
-            backgroundColor: '#ffffff',
-            padding: '12px 20px',
+            backgroundColor: 'transparent',
+            padding: '20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '20px',
+            gap: '30px',
             boxSizing: 'border-box',
         }}>
-            {/* Оранжевый овал с кнопками */}
+            {/* Горизонтальный оранжевый овал с кнопками */}
             <div style={{
                 backgroundColor: '#D72B00',
                 borderRadius: '50px',
-                padding: '8px 24px',
+                padding: '12px 40px',
                 display: 'flex',
+                flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '0',
+                gap: '20px',
                 flex: '1',
-                maxWidth: '600px',
+                maxWidth: '90%',
+                height: '48px',
+                boxSizing: 'border-box',
             }}>
                 <button
                     onClick={handleOpen}
@@ -81,10 +84,10 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                         color: '#ffffff',
                         border: 'none',
                         padding: '8px 16px',
-                        fontSize: '16px',
+                        fontSize: '22px',
                         cursor: 'pointer',
                         fontWeight: '500',
-                        fontFamily: 'inherit',
+                        fontFamily: 'Inter, sans-serif',
                     }}
                     onMouseEnter={(e) => {
                         e.target.style.opacity = '0.8';
@@ -102,10 +105,10 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                         color: '#ffffff',
                         border: 'none',
                         padding: '8px 16px',
-                        fontSize: '16px',
+                        fontSize: '22px',
                         cursor: 'pointer',
                         fontWeight: '500',
-                        fontFamily: 'inherit',
+                        fontFamily: 'Inter, sans-serif',
                     }}
                     onMouseEnter={(e) => {
                         e.target.style.opacity = '0.8';
@@ -123,10 +126,10 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                         color: '#ffffff',
                         border: 'none',
                         padding: '8px 16px',
-                        fontSize: '16px',
+                        fontSize: '22px',
                         cursor: 'pointer',
                         fontWeight: '500',
-                        fontFamily: 'inherit',
+                        fontFamily: 'Inter, sans-serif',
                     }}
                     onMouseEnter={(e) => {
                         e.target.style.opacity = '0.8';
@@ -144,10 +147,10 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                         color: '#ffffff',
                         border: 'none',
                         padding: '8px 16px',
-                        fontSize: '16px',
+                        fontSize: '22px',
                         cursor: 'pointer',
                         fontWeight: '500',
-                        fontFamily: 'inherit',
+                        fontFamily: 'Inter, sans-serif',
                     }}
                     onMouseEnter={(e) => {
                         e.target.style.opacity = '0.8';
@@ -160,15 +163,17 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                 </button>
             </div>
 
-            {/* Белый овал с оранжевым контуром для названия файла */}
+            {/* Поле ввода с оранжевой обводкой */}
             <div style={{
                 backgroundColor: '#ffffff',
-                border: '1px solid #D72B00',
+                border: '2px solid #D72B00',
                 borderRadius: '50px',
-                padding: '8px 20px',
+                padding: '12px 30px',
                 display: 'flex',
                 alignItems: 'center',
-                minWidth: '200px',
+                minWidth: '300px',
+                height: '48px',
+                boxSizing: 'border-box',
             }}>
                 <input
                     type="text"
@@ -179,7 +184,7 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                         width: '100%',
                         padding: '0',
                         margin: '0',
-                        fontSize: '16px',
+                        fontSize: '18px',
                         border: 'none',
                         backgroundColor: 'transparent',
                         color: '#000000',

@@ -5,3 +5,52 @@
     justify-content: center;
     flex-direction: column;
 }
+
+/* Стили для красивого скроллбара */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+    border: 2px solid #f1f1f1;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.custom-scrollbar-inner {
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #ffffff;
+}
+
+.custom-scrollbar-inner::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-scrollbar-inner::-webkit-scrollbar-track {
+    background: #ffffff;
+    border-radius: 10px;
+}
+
+.custom-scrollbar-inner::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+    border: 2px solid #ffffff;
+}
+
+.custom-scrollbar-inner::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

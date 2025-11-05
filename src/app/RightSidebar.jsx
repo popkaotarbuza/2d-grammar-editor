@@ -1,21 +1,30 @@
 import React, { useState } from 'react';
+import { getPatternProperties, valueToString, stringToValue } from './utils.js';
+import { buttonStyles, inputStyles, textStyles } from './styles.js';
+import './mainWindow.css';
 
-const RightSidebar = ({ selectedPattern, onUpdatePattern, onSavePattern, onCancelPattern }) => {
+/**
+ * Компонент правого sidebar
+ * Отображает и позволяет редактировать выбранный паттерн
+ */
+const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onSavePattern, onCancelPattern }) => {
     const [localPattern, setLocalPattern] = useState(selectedPattern || {});
+    const [localPatternId, setLocalPatternId] = useState(selectedPatternId || '');
 
     React.useEffect(() => {
         setLocalPattern(selectedPattern || {});
-    }, [selectedPattern]);
+        setLocalPatternId(selectedPatternId || '');
+    }, [selectedPattern, selectedPatternId]);
 
-    if (!selectedPattern) {
+    if (!selectedPattern || !selectedPatternId) {
         return (
             <div style={{
                 width: '300px',
                 minWidth: '300px',
                 flexShrink: 0,
-                backgroundColor: '#f0f0f0',
-                padding: '20px',
-                height: 'calc(100vh - 80px)',
+                backgroundColor: 'transparent',
+                padding: '0',
+                height: 'calc(100vh - 120px)',
             }}>
                 <div style={{ color: '#999', textAlign: 'center', marginTop: '50%' }}>
                     Выберите паттерн для редактирования
@@ -24,83 +33,110 @@ const RightSidebar = ({ selectedPattern, onUpdatePattern, onSavePattern, onCance
         );
     }
 
-    const updateComponent = (componentId, field, value) => {
+    // Функция для обновления свойства паттерна
+    const updateProperty = (key, value) => {
         setLocalPattern(prev => ({
             ...prev,
-            components: {
-                ...prev.components,
-                [componentId]: {
-                    ...prev.components[componentId],
-                    [field]: value,
-                }
-            }
+            [key]: value,
         }));
     };
 
-    const addComponent = () => {
-        const newId = `component_${Date.now()}`;
-        setLocalPattern(prev => ({
-            ...prev,
-            components: {
-                ...prev.components || {},
-                [newId]: {
-                    description: '',
-                    kind: 'area',
-                    size: '',
-                }
-            }
-        }));
-    };
-
-    const deleteComponent = (componentId) => {
-        setLocalPattern(prev => {
-            const newComponents = { ...prev.components };
-            delete newComponents[componentId];
-            return {
+    // Функция для добавления нового свойства
+    const addProperty = () => {
+        const newKey = prompt('Введите название свойства:');
+        if (newKey && newKey.trim()) {
+            setLocalPattern(prev => ({
                 ...prev,
-                components: newComponents,
-            };
-        });
+                [newKey.trim()]: '',
+            }));
+        }
+    };
+
+    // Функция для удаления свойства
+    const deleteProperty = (key) => {
+        if (confirm(`Удалить свойство "${key}"?`)) {
+            setLocalPattern(prev => {
+                const newPattern = { ...prev };
+                delete newPattern[key];
+                delete newPattern.id; // Убираем служебное поле id
+                return newPattern;
+            });
+        }
     };
 
     const handleSave = () => {
         if (onSavePattern) {
-            onSavePattern(localPattern);
+            const patternToSave = { ...localPattern };
+            delete patternToSave.id; // Убираем служебное поле id
+            onSavePattern({
+                oldId: selectedPatternId,
+                newId: localPatternId,
+                pattern: patternToSave,
+            });
         }
     };
 
     const handleCancel = () => {
         setLocalPattern(selectedPattern);
+        setLocalPatternId(selectedPatternId);
         if (onCancelPattern) {
             onCancelPattern();
         }
     };
 
-    const components = localPattern.components || {};
+    // Получаем все свойства паттерна для редактирования (кроме служебных)
+    const editableProperties = getPatternProperties(localPattern, ['id']);
 
     return (
         <div style={{
             width: '300px',
             minWidth: '300px',
             flexShrink: 0,
-            backgroundColor: '#f0f0f0',
-            padding: '20px',
-            overflowY: 'auto',
-            height: 'calc(100vh - 80px)',
+            backgroundColor: 'transparent',
+            padding: '0',
+            height: 'calc(100vh - 120px)',
             display: 'flex',
             flexDirection: 'column',
+            overflow: 'hidden',
         }}>
             <div style={{
-                fontWeight: 'bold',
-                fontSize: '18px',
                 marginBottom: '20px',
-                color: '#333',
+                flexShrink: 0,
             }}>
-                {selectedPattern.name || 'Паттерн'}
+                <div style={{
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    marginBottom: '8px',
+                    color: '#666',
+                }}>
+                    Название паттерна:
+                </div>
+                <input
+                    type="text"
+                    value={localPatternId}
+                    onChange={(e) => setLocalPatternId(e.target.value)}
+                    placeholder="Введите название паттерна"
+                    style={{
+                        width: '100%',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        fontFamily: 'inherit',
+                    }}
+                />
             </div>
 
-            {/* Свойства */}
-            <div style={{ marginBottom: '30px' }}>
+            {/* Свойства паттерна */}
+            <div 
+                className="custom-scrollbar-inner"
+                style={{ 
+                    flex: 1,
+                    overflowY: 'auto',
+                    marginBottom: '20px',
+                }}
+            >
                 <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -110,242 +146,89 @@ const RightSidebar = ({ selectedPattern, onUpdatePattern, onSavePattern, onCance
                     <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
                         Свойства
                     </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                            onClick={addComponent}
-                            style={{
-                                backgroundColor: '#D72B00',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
-                                cursor: 'pointer',
-                                fontSize: '18px',
-                            }}
-                        >
-                            +
-                        </button>
-                    </div>
+                    <button
+                        onClick={addProperty}
+                        style={buttonStyles.icon}
+                    >
+                        +
+                    </button>
                 </div>
 
-                {Object.entries(components).map(([componentId, component], index) => {
-                    const isSelected = selectedPattern.selectedComponentId === componentId;
-                    return (
-                        <div
-                            key={componentId}
-                            style={{
-                                marginBottom: '15px',
-                                padding: '12px',
-                                backgroundColor: isSelected ? '#D72B00' : '#ffffff',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                            }}
-                            onClick={() => {
-                                if (onUpdatePattern) {
-                                    onUpdatePattern({
-                                        ...selectedPattern,
-                                        selectedComponentId: componentId,
-                                    });
-                                }
-                            }}
-                        >
+                {editableProperties.map(([key, value]) => (
+                    <div
+                        key={key}
+                        style={{
+                            marginBottom: '15px',
+                            padding: '12px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '8px',
+                        }}
+                    >
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '8px',
+                        }}>
                             <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: '10px',
+                                fontWeight: 'bold',
+                                color: '#333',
+                                fontSize: '14px',
                             }}>
-                                <div style={{
-                                    fontWeight: 'bold',
-                                    color: isSelected ? '#fff' : '#333',
-                                }}>
-                                    Компонент {index + 1}
-                                </div>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        deleteComponent(componentId);
-                                    }}
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        color: isSelected ? '#fff' : '#999',
-                                        fontSize: '16px',
-                                    }}
-                                >
-                                    🗑️
-                                </button>
+                                {key}:
                             </div>
-
-                            <input
-                                type="text"
-                                value={component.description || ''}
-                                onChange={(e) => updateComponent(componentId, 'description', e.target.value)}
-                                placeholder="Описание"
+                            <button
+                                onClick={() => deleteProperty(key)}
                                 style={{
-                                    width: '100%',
-                                    padding: '6px',
-                                    marginBottom: '8px',
-                                    borderRadius: '4px',
-                                    border: '1px solid #ddd',
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#999',
                                     fontSize: '14px',
+                                    padding: '2px 4px',
                                 }}
-                            />
-
-                            <input
-                                type="text"
-                                value={component.kind || ''}
-                                onChange={(e) => updateComponent(componentId, 'kind', e.target.value)}
-                                placeholder="kind (area/cell/array)"
-                                style={{
-                                    width: '100%',
-                                    padding: '6px',
-                                    marginBottom: '8px',
-                                    borderRadius: '4px',
-                                    border: '1px solid #ddd',
-                                    fontSize: '14px',
-                                }}
-                            />
-
-                            <input
-                                type="text"
-                                value={component.size || ''}
-                                onChange={(e) => updateComponent(componentId, 'size', e.target.value)}
-                                placeholder="size (например: 5+ x 59+)"
-                                style={{
-                                    width: '100%',
-                                    padding: '6px',
-                                    marginBottom: '8px',
-                                    borderRadius: '4px',
-                                    border: '1px solid #ddd',
-                                    fontSize: '14px',
-                                }}
-                            />
+                            >
+                                🗑️
+                            </button>
                         </div>
-                    );
-                })}
+                        <textarea
+                            value={valueToString(value)}
+                            onChange={(e) => updateProperty(key, stringToValue(e.target.value, value))}
+                            placeholder={`Введите значение для ${key}`}
+                                    style={inputStyles.textarea}
+                        />
+                    </div>
+                ))}
 
-                {Object.keys(components).length === 0 && (
+                {editableProperties.length === 0 && (
                     <div style={{
                         padding: '20px',
                         textAlign: 'center',
                         color: '#999',
                         fontStyle: 'italic',
                     }}>
-                        Нет компонентов. Нажмите + для добавления.
+                        Нет свойств. Нажмите + для добавления.
                     </div>
                 )}
             </div>
 
-            {/* Внутренние паттерны */}
-            <div style={{ marginBottom: '30px' }}>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '15px',
-                }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
-                        Внутренние паттерны
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                            style={{
-                                backgroundColor: '#D72B00',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
-                                cursor: 'pointer',
-                                fontSize: '18px',
-                            }}
-                        >
-                            +
-                        </button>
-                    </div>
-                </div>
-                <div style={{ color: '#999', fontStyle: 'italic' }}>
-                    Компонент 1, Компонент 2
-                </div>
-            </div>
-
-            {/* Внешние паттерны */}
-            <div style={{ marginBottom: '30px' }}>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '15px',
-                }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
-                        Внешние паттерны
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                            style={{
-                                backgroundColor: '#D72B00',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
-                                cursor: 'pointer',
-                                fontSize: '18px',
-                            }}
-                        >
-                            +
-                        </button>
-                    </div>
-                </div>
-                <div style={{ color: '#999', fontStyle: 'italic' }}>
-                    Компонент 1, Компонент 2
-                </div>
-            </div>
-
-            {/* Кнопки сохранения */}
+            {/* Кнопки сохранения - всегда видимы внизу */}
             <div style={{
-                marginTop: 'auto',
+                flexShrink: 0,
                 paddingTop: '20px',
                 display: 'flex',
                 gap: '10px',
+                borderTop: '1px solid #eee',
             }}>
                 <button
                     onClick={handleSave}
-                    style={{
-                        flex: 1,
-                        backgroundColor: '#D72B00',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '12px',
-                        cursor: 'pointer',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                    }}
+                    style={buttonStyles.save}
                 >
                     ✓ Сохранить
                 </button>
                 <button
                     onClick={handleCancel}
-                    style={{
-                        flex: 1,
-                        backgroundColor: '#fff',
-                        color: '#333',
-                        border: '1px solid #ddd',
-                        borderRadius: '8px',
-                        padding: '12px',
-                        cursor: 'pointer',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                    }}
+                    style={buttonStyles.cancel}
                 >
                     ✕ Отмена
                 </button>

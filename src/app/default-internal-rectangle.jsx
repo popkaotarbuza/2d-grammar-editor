@@ -1,5 +1,5 @@
 import React from 'react';
-import { Group, Rect, Text } from 'react-konva';
+import { Group, Rect } from 'react-konva';
 
 const DefaultInternalRectangle = ({
   id,
@@ -8,7 +8,7 @@ const DefaultInternalRectangle = ({
   width = 100,
   height = 70,
   text = 'Внутренний паттерн',
-  fill = 'white',
+  fill = '#D9D9D9',
   isSelected = false,
   onSelect,
   onDragEnd,
@@ -43,7 +43,7 @@ const DefaultInternalRectangle = ({
       name="rect"
       onClick={onSelect}
       onTap={onSelect}
-      draggable={isSelected}
+      draggable={true}
       dragBoundFunc={dragBoundFunc}
       onDragEnd={onDragEnd}
     >
@@ -52,19 +52,8 @@ const DefaultInternalRectangle = ({
         height={height}
         fill={fill}
         cornerRadius={8}
-        shadowColor="black"
-        shadowBlur={10}
-        shadowOpacity={0.2}
-      />
-      <Text
-        width={width}
-        height={height}
-        text={text}
-        fontSize={24}
-        fontStyle="bold"
-        fill={isSelected ? 'red' : 'black'}
-        align="center"
-        verticalAlign="middle"
+        stroke="#949494"
+        strokeWidth={1}
       />
     </Group>
   );
