@@ -334,11 +334,13 @@ const App = () => {
    * Добавляет паттерн в список patterns и создает блок на холсте
    */
   const createExternalPattern = () => {
+    // границы внутреннего прямоугольника
     const innerRect = getInnerRectBounds(stageSize);
+    // уникальный ID паттерна
     const timestamp = Date.now();
     const patternId = `pattern_${timestamp}`;
     const patternNumber = Object.keys(patterns).length + 1;
-    
+    // добавляем паттерн в состояние
     setPatterns(prev => ({
       ...prev,
       [patternId]: {
@@ -348,7 +350,7 @@ const App = () => {
         components: {},
       }
     }));
-
+    // вычисляем позицию блока с учетом отступов
     const { width, height, xOffset, yOffset } = DEFAULT_PATTERN.EXTERNAL;
     const { x, y } = constrainToStage(
       innerRect.x + xOffset,
@@ -358,7 +360,7 @@ const App = () => {
       stageSize.width,
       stageSize.height
     );
-    
+    // добавляем блок на холст
     setBlocks(prev => [
       ...prev,
       {
