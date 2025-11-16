@@ -570,7 +570,7 @@ const App = () => {
           overflow: 'auto', 
           minWidth: 0 
         }}>
-          {/* Кнопки создания паттернов */}
+          {/* Кнопки создания паттернов 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
             <button
               onClick={createExternalPattern}
@@ -605,7 +605,7 @@ const App = () => {
               Добавить внутренний паттерн
             </button>
           </div>
-
+            */}
           {/* Контейнер Stage */}
           <div style={containerStyles.stageContainer}>
             <Stage
