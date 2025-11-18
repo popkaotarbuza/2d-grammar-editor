@@ -54,3 +54,29 @@
 .custom-scrollbar-inner::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
+
+/* Стили для скроллбара в левом sidebar */
+.custom-scrollbar-left {
+    scrollbar-width: thin;
+    scrollbar-color: #949494 #E3E3E3;
+}
+
+.custom-scrollbar-left::-webkit-scrollbar {
+    width: 10px;
+}
+
+.custom-scrollbar-left::-webkit-scrollbar-track {
+    background: #E3E3E3;
+    border-radius: 10px;
+    margin: 4px 0;
+}
+
+.custom-scrollbar-left::-webkit-scrollbar-thumb {
+    background: #949494;
+    border-radius: 10px;
+    border: 2px solid #E3E3E3;
+}
+
+.custom-scrollbar-left::-webkit-scrollbar-thumb:hover {
+    background: #7a7a7a;
+}

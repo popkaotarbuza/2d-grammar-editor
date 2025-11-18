@@ -20,7 +20,7 @@ import { LeftSidebar } from './LeftSidebar.jsx';
 import { RightSidebar } from './RightSidebar.jsx';
 import { SIZES, COLORS, DEFAULT_PATTERN } from './constants.js';
 import { containerStyles } from './styles.js';
-import { getInnerRectBounds, intersectsInnerArea, constrainToStage } from './utils.js';
+import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition } from './utils.js';
 import './mainWindow.css';
 
 const App = () => {
@@ -330,24 +330,50 @@ const App = () => {
   // ==================== Создание паттернов ====================
   
   /**
+   * Генерирует уникальное короткое имя паттерна (pattern_1, pattern_2, ...)
+   * @param {Object} patternsObj - Объект с паттернами (по умолчанию текущее состояние)
+   * @returns {string} Уникальное имя паттерна
+   */
+  const generatePatternId = (patternsObj = patterns) => {
+    const existingIds = Object.keys(patternsObj);
+    const patternNumbers = existingIds
+      .map(id => {
+        const match = id.match(/^pattern_(\d+)$/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter(num => num > 0);
+    
+    const nextNumber = patternNumbers.length > 0 
+      ? Math.max(...patternNumbers) + 1 
+      : 1;
+    
+    return `pattern_${nextNumber}`;
+  };
+  
+  /**
    * Создает новый внешний паттерн
    * Добавляет паттерн в список patterns и создает блок на холсте
    */
   const createExternalPattern = () => {
     const innerRect = getInnerRectBounds(stageSize);
-    const timestamp = Date.now();
-    const patternId = `pattern_${timestamp}`;
-    const patternNumber = Object.keys(patterns).length + 1;
+    let patternId;
+    let patternNumber;
     
-    setPatterns(prev => ({
-      ...prev,
-      [patternId]: {
-        name: `Паттерн ${patternNumber}`,
-        description: '',
-        kind: 'external',
-        components: {},
-      }
-    }));
+    setPatterns(prev => {
+      patternId = generatePatternId(prev);
+      patternNumber = Object.keys(prev).length + 1;
+      return {
+        ...prev,
+        [patternId]: {
+          name: `Паттерн ${patternNumber}`,
+          description: '',
+          kind: 'external',
+          components: {},
+          inner: {},
+          outer: {},
+        }
+      };
+    });
 
     const { width, height, xOffset, yOffset } = DEFAULT_PATTERN.EXTERNAL;
     const { x, y } = constrainToStage(
@@ -376,19 +402,24 @@ const App = () => {
    */
   const createInternalPattern = () => {
     const innerRect = getInnerRectBounds(stageSize);
-    const timestamp = Date.now();
-    const patternId = `pattern_${timestamp}`;
-    const patternNumber = Object.keys(patterns).length + 1;
+    let patternId;
+    let patternNumber;
     
-    setPatterns(prev => ({
-      ...prev,
-      [patternId]: {
-        name: `Паттерн ${patternNumber}`,
-        description: '',
-        kind: 'internal',
-        components: {},
-      }
-    }));
+    setPatterns(prev => {
+      patternId = generatePatternId(prev);
+      patternNumber = Object.keys(prev).length + 1;
+      return {
+        ...prev,
+        [patternId]: {
+          name: `Паттерн ${patternNumber}`,
+          description: '',
+          kind: 'internal',
+          components: {},
+          inner: {},
+          outer: {},
+        }
+      };
+    });
 
     const { width, height, xOffset, yOffset } = DEFAULT_PATTERN.INTERNAL;
     
@@ -403,6 +434,28 @@ const App = () => {
         width, height,
       }
     ]);
+  };
+
+  /**
+   * Создает новый пустой паттерн
+   * Добавляет паттерн в список patterns, но НЕ создает блок на холсте
+   */
+  const createEmptyPattern = () => {
+    setPatterns(prev => {
+      const patternId = generatePatternId(prev);
+      const patternNumber = Object.keys(prev).length + 1;
+      return {
+        ...prev,
+        [patternId]: {
+          name: `Паттерн ${patternNumber}`,
+          description: '',
+          kind: 'external',
+          components: {},
+          inner: {},
+          outer: {},
+        }
+      };
+    });
   };
 
   // ==================== Рендер сетки ====================
@@ -464,6 +517,124 @@ const App = () => {
   // ==================== Рендер паттернов ====================
   
   /**
+   * Рендерит дочерние паттерны (inner и outer) выбранного паттерна
+   */
+  const renderChildPatterns = () => {
+    if (!selectedPatternId || !selectedPattern) return null;
+
+    const parentPattern = selectedPattern;
+    const innerPatterns = parentPattern.inner || {};
+    const outerPatterns = parentPattern.outer || {};
+
+    // Размещаем родительский паттерн по центру поля
+    const parentWidth = DEFAULT_PATTERN.EXTERNAL.width;
+    const parentHeight = DEFAULT_PATTERN.EXTERNAL.height;
+    const parentX = (stageSize.width - parentWidth) / 2;
+    const parentY = (stageSize.height - parentHeight) / 2;
+    const parentBounds = { x: parentX, y: parentY, width: parentWidth, height: parentHeight };
+
+    const childElements = [];
+
+    // Отрисовываем внутренние паттерны
+    Object.entries(innerPatterns).forEach(([componentName, componentData]) => {
+      if (!componentData || !componentData.pattern) return;
+
+      const childPatternId = componentData.pattern;
+      const childPattern = patterns[childPatternId];
+      if (!childPattern) return;
+
+      const childSize = {
+        width: DEFAULT_PATTERN.INTERNAL.width,
+        height: DEFAULT_PATTERN.INTERNAL.height,
+      };
+
+      const position = calculateChildPosition(
+        componentData.location,
+        parentBounds,
+        childSize,
+        true // isInner
+      );
+
+      childElements.push(
+        <DefaultInternalRectangle
+          key={`inner-${componentName}`}
+          id={`inner-${componentName}`}
+          x={position.x}
+          y={position.y}
+          width={childSize.width}
+          height={childSize.height}
+          text={componentName}
+          isSelected={false}
+          onSelect={() => {}}
+          onDragEnd={() => {}}
+          nodeRef={() => {}}
+          stageSize={stageSize}
+        />
+      );
+    });
+
+    // Отрисовываем внешние паттерны
+    Object.entries(outerPatterns).forEach(([componentName, componentData]) => {
+      if (!componentData || !componentData.pattern) return;
+
+      const childPatternId = componentData.pattern;
+      const childPattern = patterns[childPatternId];
+      if (!childPattern) return;
+
+      const childSize = {
+        width: DEFAULT_PATTERN.EXTERNAL.width,
+        height: DEFAULT_PATTERN.EXTERNAL.height,
+      };
+
+      const position = calculateChildPosition(
+        componentData.location,
+        parentBounds,
+        childSize,
+        false // isInner
+      );
+
+      childElements.push(
+        <DefaultExternalRectangle
+          key={`outer-${componentName}`}
+          id={`outer-${componentName}`}
+          x={position.x}
+          y={position.y}
+          width={childSize.width}
+          height={childSize.height}
+          text={componentName}
+          isSelected={false}
+          onSelect={() => {}}
+          onDragEnd={() => {}}
+          nodeRef={() => {}}
+          stageSize={stageSize}
+        />
+      );
+    });
+
+    // Отрисовываем родительский паттерн по центру
+    if (Object.keys(innerPatterns).length > 0 || Object.keys(outerPatterns).length > 0) {
+      childElements.push(
+        <DefaultExternalRectangle
+          key="parent-pattern"
+          id="parent-pattern"
+          x={parentX}
+          y={parentY}
+          width={parentWidth}
+          height={parentHeight}
+          text={selectedPatternId}
+          isSelected={true}
+          onSelect={() => {}}
+          onDragEnd={() => {}}
+          nodeRef={() => {}}
+          stageSize={stageSize}
+        />
+      );
+    }
+
+    return childElements;
+  };
+
+  /**
    * Рендерит все паттерны на холсте
    */
   const renderBlocks = () => (
@@ -504,6 +675,9 @@ const App = () => {
           ? <DefaultInternalRectangle {...commonProps} />
           : <DefaultExternalRectangle {...commonProps} />;
       })}
+
+      {/* Отрисовываем дочерние паттерны выбранного паттерна */}
+      {renderChildPatterns()}
 
       {/* Прямоугольник выделения */}
       {selectionRectangle.visible && (
@@ -554,6 +728,7 @@ const App = () => {
             selectedPatternId={selectedPatternId}
             selectedComponentId={selectedComponentId}
             onSelectPattern={handleSelectPattern}
+            onCreateEmptyPattern={createEmptyPattern}
           />
         </div>
 
@@ -633,6 +808,7 @@ const App = () => {
             onUpdatePattern={handleUpdatePattern}
             onSavePattern={handleSavePattern}
             onCancelPattern={handleCancelPattern}
+            allPatterns={patterns}
           />
         </div>
       </div>
