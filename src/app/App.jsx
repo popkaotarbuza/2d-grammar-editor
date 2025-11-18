@@ -612,26 +612,6 @@ const App = () => {
       );
     });
 
-    // Отрисовываем родительский паттерн по центру
-    if (Object.keys(innerPatterns).length > 0 || Object.keys(outerPatterns).length > 0) {
-      childElements.push(
-        <DefaultExternalRectangle
-          key="parent-pattern"
-          id="parent-pattern"
-          x={parentX}
-          y={parentY}
-          width={parentWidth}
-          height={parentHeight}
-          text={selectedPatternId}
-          isSelected={true}
-          onSelect={() => {}}
-          onDragEnd={() => {}}
-          nodeRef={() => {}}
-          stageSize={stageSize}
-        />
-      );
-    }
-
     return childElements;
   };
 

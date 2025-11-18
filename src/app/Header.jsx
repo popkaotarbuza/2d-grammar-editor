@@ -15,12 +15,24 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                     try {
                         const fileContent = event.target.result;
                         let content;
-                        content = extractPatterns(parse(fileContent));
-                       
+                        
+                        if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
+                            // Для YAML файлов: парсим и извлекаем паттерны
+                            const parsedYaml = parse(fileContent);
+                            const patterns = extractPatterns(parsedYaml);
+                            content = {
+                                patterns: patterns,
+                                blocks: []
+                            };
+                        } else {
+                            // Для JSON файлов: парсим напрямую
+                            content = JSON.parse(fileContent);
+                        }
                         
                         onOpen(content, file.name);
                         
-                        console.log(fileContent, content);
+                        console.log('Загружен файл:', file.name);
+                        console.log('Паттерны:', content.patterns);
                     } catch (error) {
                         console.error('Ошибка при чтении файла:', error);
                         alert('Не удалось открыть файл: ' + error.message);
