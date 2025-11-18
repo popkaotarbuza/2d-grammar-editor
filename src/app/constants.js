@@ -40,8 +40,8 @@ export const DEFAULT_PATTERN = {
   EXTERNAL: {
     width: 100,
     height: 70,
-    xOffset: -120,             // Смещение при создании внешнего паттерна
-    yOffset: 50,
+    xOffset: -100,             // Смещение при создании внешнего паттерна
+    yOffset: 40,
   },
   INTERNAL: {
     width: 100,

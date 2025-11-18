@@ -1,13 +1,13 @@
-// импорт данных из YAML файлов
-import { parse } from 'yaml';
-import { readFileSync } from 'fs';
+// // импорт данных из YAML файлов
+// import { parse } from 'yaml';
+// import { readFileSync } from 'fs';
 
-const pathToFile = '../../data/to-import/';
-const fileName = "grammar-root";
-const yamlContent = readFileSync(pathToFile + fileName + '.yaml', 'utf8');
+// const pathToFile = '../../data/to-import/';
+// const fileName = "grammar-root";
+// const yamlContent = readFileSync(pathToFile + fileName + '.yaml', 'utf8');
 
-const rawYaml = parse(yamlContent);
-console.log("Исходный YAML\n", rawYaml);
+// const rawYaml = parse(yamlContent);
+// console.log("Исходный YAML\n", yamlContent);
 
 // Функция для извлечения паттернов из YAML данных
 function extractPatterns(yamlData, patterns = {}) {
@@ -108,8 +108,8 @@ function extractPatterns(yamlData, patterns = {}) {
     return patterns;
 }
 
-// === ЗАПУСК ===
-const patterns = extractPatterns(rawYaml);
-console.log("Переработанный YAML в JSON\n", patterns);
+// // === ЗАПУСК ===
+// const patterns = extractPatterns(rawYaml);
+// console.log("Переработанный YAML в JSON\n", patterns);
 
-export { patterns, fileName };
+export { extractPatterns };

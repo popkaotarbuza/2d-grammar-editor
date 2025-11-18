@@ -355,6 +355,7 @@ const App = () => {
    * Добавляет паттерн в список patterns и создает блок на холсте
    */
   const createExternalPattern = () => {
+    // границы внутреннего прямоугольника
     const innerRect = getInnerRectBounds(stageSize);
     let patternId;
     let patternNumber;
@@ -384,7 +385,7 @@ const App = () => {
       stageSize.width,
       stageSize.height
     );
-    
+    // добавляем блок на холст
     setBlocks(prev => [
       ...prev,
       {
