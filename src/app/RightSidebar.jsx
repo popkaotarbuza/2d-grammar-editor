@@ -104,6 +104,7 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
             outer: (pattern.outer && typeof pattern.outer === 'object' && !Array.isArray(pattern.outer)) 
                 ? pattern.outer 
                 : {},
+            extends: Array.isArray(pattern.extends) ? pattern.extends : [],
         };
         setLocalPattern(initializedPattern);
         setLocalPatternId(selectedPatternId || '');
@@ -283,6 +284,56 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
         }
     };
 
+
+
+
+
+    // === extends ===
+    const getExtends = () => Array.isArray(localPattern.extends) ? localPattern.extends : [];
+
+    const addExtend = () => {
+        const availablePatterns = Object.keys(allPatterns).filter(id => id !== selectedPatternId);
+        if (availablePatterns.length === 0) {
+            alert('Нет доступных паттернов для добавления');
+            return;
+        }
+
+        const patternId = prompt(`Введите ID паттерна для extends (доступные: ${availablePatterns.join(', ')})`);
+        if (patternId && availablePatterns.includes(patternId.trim())) {
+            const trimmedId = patternId.trim();
+            setLocalPattern(prev => ({
+                ...prev,
+                extends: [...getExtends(), trimmedId]
+            }));
+        } else {
+            alert('Паттерн с таким ID не найден');
+        }
+    };
+
+    const deleteExtend = (index) => {
+        setLocalPattern(prev => {
+            const list = [...getExtends()];
+            list.splice(index, 1);
+            return {
+                ...prev,
+                extends: list
+            };
+        });
+    };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     const handleSave = () => {
         if (onSavePattern) {
             const patternToSave = { ...localPattern };
@@ -304,7 +355,7 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
     };
 
     // Получаем все свойства паттерна для редактирования (кроме служебных)
-    const editableProperties = getPatternProperties(localPattern, ['id', 'inner', 'outer']);
+    const editableProperties = getPatternProperties(localPattern, ['id', 'inner', 'outer', 'extends']);
 
     return (
         <div style={{
@@ -589,7 +640,87 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
                         Нет внешних паттернов. Нажмите + для добавления.
                     </div>
                 )}
+
+
+
+
+
+                {/* Extends */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: '30px',
+                marginBottom: '15px',
+            }}>
+                <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
+                    Extends
+                </div>
+                <button
+                    onClick={addExtend}
+                    style={buttonStyles.icon}
+                >
+                    +
+                </button>
             </div>
+
+            {getExtends().map((patternId, index) => (
+                <div
+                    key={index}
+                    style={{
+                        marginBottom: '10px',
+                        padding: '10px',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                    }}
+                >
+                    <span style={{ fontSize: '14px', color: '#333' }}>
+                        {patternId}
+                    </span>
+                    <button
+                        onClick={() => deleteExtend(index)}
+                        style={{
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#999',
+                            fontSize: '14px',
+                            padding: '2px 4px',
+                        }}
+                    >
+                        🗑️
+                    </button>
+                </div>
+            ))}
+
+            {getExtends().length === 0 && (
+                <div style={{
+                    padding: '20px',
+                    textAlign: 'center',
+                    color: '#999',
+                    fontStyle: 'italic',
+                }}>
+                    Нет наследуемых паттернов. Нажмите + для добавления.
+                </div>
+            )}
+
+
+
+
+
+            </div>
+
+
+
+
+
+
+
+
+
 
             {/* Кнопки сохранения - всегда видимы внизу */}
             <div style={{

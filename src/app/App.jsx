@@ -20,11 +20,21 @@ import { LeftSidebar } from './LeftSidebar.jsx';
 import { RightSidebar } from './RightSidebar.jsx';
 import { SIZES, COLORS, DEFAULT_PATTERN } from './constants.js';
 import { containerStyles } from './styles.js';
-import { stringify as yamlStringify } from 'yaml';
+import { stringify as yamlStringifyOriginal } from 'yaml';
 import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition } from './utils.js';
 import './mainWindow.css';
 
+// локальная обёртка для компактного YAML
+const yamlStringify = (obj) => yamlStringifyOriginal(obj, {
+  indent: 2,      // читаемый отступ
+  flowLevel: 1,   // массивы на первом уровне будут в виде [a, b]
+});
+
+
 const App = () => {
+
+
+
   // ==================== Вычисление размеров ====================
   
   /**
