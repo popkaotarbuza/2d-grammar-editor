@@ -1,6 +1,7 @@
 import React from 'react';
 import { parse } from 'yaml';
 import { extractPatterns } from '../entities/import-yaml.js'
+import { cleanEmptyPatternComponents } from '../entities/import-yaml.js'
 
 const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange }) => {
     const handleOpen = () => {
@@ -17,9 +18,14 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                         let content;
                         
                         if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
+                            
                             // Для YAML файлов: парсим и извлекаем паттерны
                             const parsedYaml = parse(fileContent);
-                            const patterns = extractPatterns(parsedYaml);
+                            const cleaned = cleanEmptyPatternComponents(parsedYaml);
+
+                            // Берём только корректный объект паттернов
+                            const patterns = extractPatterns(cleaned?.patterns || {});
+
                             content = {
                                 patterns: patterns,
                                 blocks: []

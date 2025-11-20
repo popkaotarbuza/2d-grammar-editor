@@ -20,6 +20,7 @@ import { LeftSidebar } from './LeftSidebar.jsx';
 import { RightSidebar } from './RightSidebar.jsx';
 import { SIZES, COLORS, DEFAULT_PATTERN } from './constants.js';
 import { containerStyles } from './styles.js';
+import { stringify as yamlStringify } from 'yaml';
 import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition } from './utils.js';
 import './mainWindow.css';
 
@@ -199,29 +200,110 @@ const App = () => {
    * Обработчик сохранения файла
    */
   const handleSave = () => {
-    const data = {
+  // если нет имени — предупреждаем
+  if (!fileName || fileName.trim() === '') {
+    alert('Введите имя файла в поле "Название файла" или используйте "Сохранить как".');
+    return;
+  }
+
+  try {
+    const payload = {
       patterns: patterns,
       blocks: blocks,
       fileName: fileName || 'untitled',
     };
-    downloadJSON(data, `${fileName || 'untitled'}.json`);
-  };
+
+    // сериализуем в YAML
+    const yamlText = yamlStringify(payload);
+
+    // имя файла — гарантируем расширение .yaml
+    const finalName = fileName.match(/\.(ya?ml|json)$/i)
+      ? fileName.replace(/\.(json|ya?ml)$/i, '.yaml')
+      : `${fileName}.yaml`;
+
+    const blob = new Blob([yamlText], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = finalName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Ошибка при сохранении:', err);
+    alert('Ошибка при сохранении: ' + (err.message || err));
+  }
+};
+
 
   /**
    * Обработчик сохранения как
    */
   const handleSaveAs = () => {
-    const name = prompt('Введите название файла:', fileName || 'untitled');
-    if (name) {
-      setFileName(name);
-      const data = {
-        patterns: patterns,
-        blocks: blocks,
-        fileName: name,
-      };
-      downloadJSON(data, `${name}.json`);
+  try {
+    // Предлагаем пользователю ввести имя файла (без/с расширением)
+    const inputName = window.prompt('Введите имя файла (без расширения) или с расширением (.json/.yaml):', fileName || 'untitled');
+
+    if (!inputName) {
+      // пользователь отменил
+      return;
     }
-  };
+
+    // Если пользователь ввёл расширение — используем его, иначе спрашиваем формат
+    let chosenExt = null;
+    const extMatch = inputName.match(/\.(json|ya?ml)$/i);
+    if (extMatch) {
+      chosenExt = extMatch[1].toLowerCase().startsWith('y') ? 'yaml' : 'json';
+    } else {
+      // Просим выбрать формат
+      const fmt = window.prompt('Выберите формат: введите "json" или "yaml"', 'yaml');
+      if (!fmt) return;
+      const low = fmt.trim().toLowerCase();
+      if (low !== 'json' && low !== 'yaml' && low !== 'yml') {
+        alert('Неправильный формат. Операция отменена.');
+        return;
+      }
+      chosenExt = (low === 'json') ? 'json' : 'yaml';
+    }
+
+    // Формируем окончательное имя
+    const baseName = inputName.replace(/\.(json|ya?ml)$/i, '');
+    const finalName = chosenExt === 'json' ? `${baseName}.json` : `${baseName}.yaml`;
+
+    // Данные
+    const payload = {
+      patterns: patterns,
+      blocks: blocks,
+      fileName: baseName,
+    };
+
+    let blob;
+    if (chosenExt === 'json') {
+      const jsonText = JSON.stringify(payload, null, 2);
+      blob = new Blob([jsonText], { type: 'application/json' });
+    } else {
+      const yamlText = yamlStringify(payload);
+      blob = new Blob([yamlText], { type: 'text/yaml' });
+    }
+
+    // Скачиваем
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = finalName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // Обновляем состояние имени файла (без расширения)
+    setFileName(baseName);
+  } catch (err) {
+    console.error('Ошибка в Save As:', err);
+    alert('Ошибка при сохранении: ' + (err.message || err));
+  }
+};
 
   /**
    * Обработчик экспорта
