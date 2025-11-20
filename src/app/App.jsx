@@ -240,68 +240,49 @@ const App = () => {
   /**
    * Обработчик сохранения как
    */
-  const handleSaveAs = () => {
+  const handleSaveAs = async () => {
   try {
-    // Предлагаем пользователю ввести имя файла (без/с расширением)
-    const inputName = window.prompt('Введите имя файла (без расширения) или с расширением (.json/.yaml):', fileName || 'untitled');
+    // Предлагаем пользователю выбрать место, имя и расширение
+    const fileHandle = await window.showSaveFilePicker({
+      suggestedName: fileName || 'untitled.yaml',
+      types: [
+        {
+          description: 'YAML файлы',
+          accept: { 'text/yaml': ['.yaml', '.yml'] }
+        },
+        {
+          description: 'JSON файлы',
+          accept: { 'application/json': ['.json'] }
+        }
+      ]
+    });
 
-    if (!inputName) {
-      // пользователь отменил
-      return;
-    }
-
-    // Если пользователь ввёл расширение — используем его, иначе спрашиваем формат
-    let chosenExt = null;
-    const extMatch = inputName.match(/\.(json|ya?ml)$/i);
-    if (extMatch) {
-      chosenExt = extMatch[1].toLowerCase().startsWith('y') ? 'yaml' : 'json';
-    } else {
-      // Просим выбрать формат
-      const fmt = window.prompt('Выберите формат: введите "json" или "yaml"', 'yaml');
-      if (!fmt) return;
-      const low = fmt.trim().toLowerCase();
-      if (low !== 'json' && low !== 'yaml' && low !== 'yml') {
-        alert('Неправильный формат. Операция отменена.');
-        return;
-      }
-      chosenExt = (low === 'json') ? 'json' : 'yaml';
-    }
-
-    // Формируем окончательное имя
-    const baseName = inputName.replace(/\.(json|ya?ml)$/i, '');
-    const finalName = chosenExt === 'json' ? `${baseName}.json` : `${baseName}.yaml`;
-
-    // Данные
-    const payload = {
-      patterns: patterns,
-      blocks: blocks,
-      fileName: baseName,
-    };
+    const ext = fileHandle.name.split('.').pop().toLowerCase();
+    const payload = { patterns, blocks };
 
     let blob;
-    if (chosenExt === 'json') {
-      const jsonText = JSON.stringify(payload, null, 2);
-      blob = new Blob([jsonText], { type: 'application/json' });
+    if (ext === 'json') {
+      blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json'
+      });
     } else {
-      const yamlText = yamlStringify(payload);
-      blob = new Blob([yamlText], { type: 'text/yaml' });
+      blob = new Blob([yamlStringify(payload)], {
+        type: 'text/yaml'
+      });
     }
 
-    // Скачиваем
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = finalName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
 
-    // Обновляем состояние имени файла (без расширения)
-    setFileName(baseName);
+    setFileName(fileHandle.name.replace(/\.(json|ya?ml)$/i, ''));
+
+    console.log('Файл успешно сохранён:', fileHandle.name);
+
   } catch (err) {
-    console.error('Ошибка в Save As:', err);
-    alert('Ошибка при сохранении: ' + (err.message || err));
+    if (err.name === 'AbortError') return; // пользователь отменил
+    console.error('Ошибка Save As:', err);
+    alert('Ошибка при сохранении: ' + err.message);
   }
 };
 
