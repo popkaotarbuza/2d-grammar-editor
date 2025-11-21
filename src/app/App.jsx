@@ -20,7 +20,7 @@ import { LeftSidebar } from './LeftSidebar.jsx';
 import { RightSidebar } from './RightSidebar.jsx';
 import { SIZES, COLORS, DEFAULT_PATTERN } from './constants.js';
 import { containerStyles } from './styles.js';
-import { stringify as yamlStringifyOriginal } from 'yaml';
+import { stringify as yamlStringifyOriginal, YAMLSeq, Scalar } from "yaml";
 import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition } from './utils.js';
 import './mainWindow.css';
 
@@ -206,6 +206,44 @@ const App = () => {
     }
   };
 
+
+
+  const normalizeExtendsFormat = (patterns) => {
+  const clone = structuredClone(patterns);
+
+  for (const key in clone) {
+    const p = clone[key];
+    if (!p.extends) continue;
+
+    // Если extends был объектом типа {"0": "pattern_2"} → делаем нормальный массив
+    if (typeof p.extends === "object" && !Array.isArray(p.extends)) {
+      p.extends = Object.values(p.extends);
+    }
+
+    if (Array.isArray(p.extends)) {
+      // Создаём YAMLSeq для flow-стиля
+      const seq = new YAMLSeq();
+      seq.flow = true; // <--- Это заставляет YAML печатать [a, b]
+
+      // Добавляем элементы как Scalar
+      p.extends.forEach(e => seq.items.push(new Scalar(e)));
+
+      p.extends = seq;
+    }
+  }
+
+  return clone;
+};
+
+
+
+
+
+
+
+
+
+
   /**
    * Обработчик сохранения файла
    */
@@ -218,7 +256,7 @@ const App = () => {
 
   try {
     const payload = {
-      patterns: patterns,
+      patterns: normalizeExtendsFormat(patterns),
       blocks: blocks,
       fileName: fileName || 'untitled',
     };
@@ -268,7 +306,10 @@ const App = () => {
     });
 
     const ext = fileHandle.name.split('.').pop().toLowerCase();
-    const payload = { patterns, blocks };
+    const payload = {
+      patterns: normalizeExtendsFormat(patterns),
+      blocks: blocks,
+    };
 
     let blob;
     if (ext === 'json') {

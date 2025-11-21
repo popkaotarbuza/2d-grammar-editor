@@ -112,6 +112,28 @@ function extractPatterns(yamlData, patterns = {}) {
                 patterns[name][key] = value;
             }
         }
+
+        // === Обработка extends ===
+        if ('extends' in properties) {
+            const ext = properties.extends;
+            if (Array.isArray(ext)) {
+                patterns[name].extends = ext.slice(); // копия массива
+            } else if (typeof ext === 'string') {
+                patterns[name].extends = [ext]; // одна строка → массив из одного элемента
+            } else if (typeof ext === 'object' && ext !== null) {
+                // объект с индексами → преобразуем в массив по ключам 0,1,2…
+                patterns[name].extends = Object.keys(ext)
+                    .sort((a,b) => a - b)
+                    .map(k => ext[k]);
+            } else {
+                // всё остальное → пустой массив
+                patterns[name].extends = [];
+            }
+        } else {
+            patterns[name].extends = [];
+        }
+
+
     }
 
     return patterns;

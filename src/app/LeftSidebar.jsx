@@ -78,7 +78,7 @@ const LeftSidebar = ({ patterns, selectedPatternId, selectedComponentId, onSelec
             >
                 {Object.entries(patterns).map(([patternId, pattern], index) => {
                     const isPatternSelected = selectedPatternId === patternId;
-                    const properties = getPatternProperties(pattern, ['inner', 'outer']);
+                    const properties = getPatternProperties(pattern, ['inner', 'outer', 'extends']);
             
                     return (
                         <div 

@@ -90,6 +90,9 @@ const LocationDisplay = ({ location }) => {
  * Отображает и позволяет редактировать выбранный паттерн
  */
 const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onSavePattern, onCancelPattern, allPatterns = {} }) => {
+    
+    console.log("RIGHT SIDEBAR pattern:", selectedPattern);  // ОТЛАДОЧНАЯ СТРОКА
+    
     const [localPattern, setLocalPattern] = useState(selectedPattern || {});
     const [localPatternId, setLocalPatternId] = useState(selectedPatternId || '');
 
@@ -106,6 +109,9 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
                 : {},
             extends: Array.isArray(pattern.extends) ? pattern.extends : [],
         };
+
+        console.log("INITIALIZED pattern:", initializedPattern); // ОТЛАДОЧНАЯ
+
         setLocalPattern(initializedPattern);
         setLocalPatternId(selectedPatternId || '');
     }, [selectedPattern, selectedPatternId]);
@@ -640,8 +646,6 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
                         Нет внешних паттернов. Нажмите + для добавления.
                     </div>
                 )}
-
-
 
 
 
