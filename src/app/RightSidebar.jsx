@@ -212,36 +212,48 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
             alert('Нет доступных паттернов для добавления');
             return;
         }
-        
+
         const componentName = prompt(`Введите имя компонента:`);
         if (!componentName || !componentName.trim()) {
             return;
         }
-        
+
         const patternId = prompt(`Введите ID паттерна (доступные: ${availablePatterns.join(', ')})`);
         if (patternId && patternId.trim() && availablePatterns.includes(patternId.trim())) {
             const trimmedName = componentName.trim();
             const trimmedId = patternId.trim();
+
             setLocalPattern(prev => {
-                const currentInner = (prev.inner && typeof prev.inner === 'object' && !Array.isArray(prev.inner)) 
-                    ? prev.inner 
+                const currentInner = (prev.inner && typeof prev.inner === 'object' && !Array.isArray(prev.inner))
+                    ? prev.inner
                     : {};
-                if (!currentInner[trimmedName]) {
-                    return {
-                        ...prev,
-                        inner: {
-                            ...currentInner,
-                            [trimmedName]: {
-                                pattern: trimmedId,
-                                location: {}
-                            }
-                        }
-                    };
-                } else {
+
+                // Проверка на существование компонента с таким именем
+                if (currentInner[trimmedName]) {
                     alert('Компонент с таким именем уже существует');
                     return prev;
                 }
+
+                // Проверка на уникальность паттерна внутри inner
+                const usedPatterns = Object.values(currentInner).map(item => item.pattern);
+                if (usedPatterns.includes(trimmedId)) {
+                    alert('Этот паттерн уже используется внутри компонента');
+                    return prev;
+                }
+
+                // Если всё ок, добавляем новый компонент
+                return {
+                    ...prev,
+                    inner: {
+                        ...currentInner,
+                        [trimmedName]: {
+                            pattern: trimmedId,
+                            location: {}
+                        }
+                    }
+                };
             });
+
         } else if (patternId && patternId.trim()) {
             alert('Паттерн с таким ID не найден');
         }
@@ -275,40 +287,53 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
             alert('Нет доступных паттернов для добавления');
             return;
         }
-        
+
         const componentName = prompt(`Введите имя компонента:`);
         if (!componentName || !componentName.trim()) {
             return;
         }
-        
+
         const patternId = prompt(`Введите ID паттерна (доступные: ${availablePatterns.join(', ')})`);
         if (patternId && patternId.trim() && availablePatterns.includes(patternId.trim())) {
             const trimmedName = componentName.trim();
             const trimmedId = patternId.trim();
+
             setLocalPattern(prev => {
-                const currentOuter = (prev.outer && typeof prev.outer === 'object' && !Array.isArray(prev.outer)) 
-                    ? prev.outer 
+                const currentOuter = (prev.outer && typeof prev.outer === 'object' && !Array.isArray(prev.outer))
+                    ? prev.outer
                     : {};
-                if (!currentOuter[trimmedName]) {
-                    return {
-                        ...prev,
-                        outer: {
-                            ...currentOuter,
-                            [trimmedName]: {
-                                pattern: trimmedId,
-                                location: {}
-                            }
-                        }
-                    };
-                } else {
+
+                // Проверка на существование компонента с таким именем
+                if (currentOuter[trimmedName]) {
                     alert('Компонент с таким именем уже существует');
                     return prev;
                 }
+
+                // Проверка на уникальность паттерна внутри outer
+                const usedPatterns = Object.values(currentOuter).map(item => item.pattern);
+                if (usedPatterns.includes(trimmedId)) {
+                    alert('Этот паттерн уже используется внутри внешнего компонента');
+                    return prev;
+                }
+
+                // Если всё ок, добавляем новый компонент
+                return {
+                    ...prev,
+                    outer: {
+                        ...currentOuter,
+                        [trimmedName]: {
+                            pattern: trimmedId,
+                            location: {}
+                        }
+                    }
+                };
             });
+
         } else if (patternId && patternId.trim()) {
             alert('Паттерн с таким ID не найден');
         }
     };
+
 
     const deleteExternalPattern = (componentName) => {
         if (confirm(`Удалить внешний паттерн "${componentName}"?`)) {
@@ -334,23 +359,32 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
     const getExtends = () => Array.isArray(localPattern.extends) ? localPattern.extends : [];
 
     const addExtend = () => {
-        const availablePatterns = Object.keys(allPatterns).filter(id => id !== selectedPatternId);
-        if (availablePatterns.length === 0) {
-            alert('Нет доступных паттернов для добавления');
-            return;
-        }
+    const availablePatterns = Object.keys(allPatterns).filter(id => id !== selectedPatternId);
+    if (availablePatterns.length === 0) {
+        alert('Нет доступных паттернов для добавления');
+        return;
+    }
 
-        const patternId = prompt(`Введите ID паттерна для extends (доступные: ${availablePatterns.join(', ')})`);
-        if (patternId && availablePatterns.includes(patternId.trim())) {
-            const trimmedId = patternId.trim();
-            setLocalPattern(prev => ({
+    const patternId = prompt(`Введите ID паттерна для extends (доступные: ${availablePatterns.join(', ')})`);
+    if (patternId && availablePatterns.includes(patternId.trim())) {
+        const trimmedId = patternId.trim();
+
+        setLocalPattern(prev => {
+            const currentExtends = getExtends(); // текущие extends
+            if (currentExtends.includes(trimmedId)) {
+                alert('Этот паттерн уже добавлен в extends');
+                return prev;
+            }
+
+            return {
                 ...prev,
-                extends: [...getExtends(), trimmedId]
-            }));
-        } else {
-            alert('Паттерн с таким ID не найден');
-        }
-    };
+                extends: [...currentExtends, trimmedId]
+            };
+        });
+    } else {
+        alert('Паттерн с таким ID не найден');
+    }
+};
 
     const deleteExtend = (index) => {
         setLocalPattern(prev => {
