@@ -146,15 +146,46 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
         }));
     };
 
+
+
+
+    // НЕЛЬЗЯ ДОБАВЛЯТЬ СВОЙСТВА С ТАКИМИ ИМЕНАМИ
+    const RESERVED_KEYS = ['extends', 'inner', 'outer'];
+
     // Функция для добавления нового свойства
     const addProperty = () => {
         const newKey = prompt('Введите название свойства:');
-        if (newKey && newKey.trim()) {
-            setLocalPattern(prev => ({
-                ...prev,
-                [newKey.trim()]: '',
-            }));
+        if (!newKey || !newKey.trim()) {
+            return; // пустая строка — игнор
         }
+
+        const trimmedKey = newKey.trim();
+
+        // Проверка на спецсимволы (можно убрать если не нужно)
+        if (!/^[a-zA-Z0-9_]+$/.test(trimmedKey)) {
+            alert('Название свойства может содержать только буквы, цифры и _.');
+            return;
+        }
+
+        setLocalPattern(prev => {
+
+            // Запрещённые ключи
+            if (RESERVED_KEYS.includes(trimmedKey)) {
+                alert(`"${trimmedKey}" — зарезервированное имя и не может быть свойством.`);
+                return prev;
+            }
+
+            // Предотвращаем дубликаты
+            else if (trimmedKey in prev) {
+                alert('Свойство с таким именем уже существует.');
+                return prev;
+            }
+
+            return {
+                ...prev,
+                [trimmedKey]: '',
+            };
+        });
     };
 
     // Функция для удаления свойства
