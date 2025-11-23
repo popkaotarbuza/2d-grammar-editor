@@ -95,6 +95,7 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
     
     const [localPattern, setLocalPattern] = useState(selectedPattern || {});
     const [localPatternId, setLocalPatternId] = useState(selectedPatternId || '');
+    const [originalPatternId, setOriginalPatternId] = useState(selectedPatternId || "");
 
     React.useEffect(() => {
         const pattern = selectedPattern || {};
@@ -115,6 +116,10 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
         setLocalPattern(initializedPattern);
         setLocalPatternId(selectedPatternId || '');
     }, [selectedPattern, selectedPatternId]);
+
+    React.useEffect(() => {
+            setOriginalPatternId(selectedPatternId || "");
+        }, [selectedPatternId]);
 
     if (!selectedPattern || !selectedPatternId) {
         return (
@@ -388,20 +393,33 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
                     Название паттерна:
                 </div>
                 <input
-                    type="text"
-                    value={localPatternId}
-                    onChange={(e) => setLocalPatternId(e.target.value)}
-                    placeholder="Введите название паттерна"
-                    style={{
-                        width: '100%',
-                        padding: '8px',
-                        borderRadius: '4px',
-                        border: '1px solid #ddd',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        fontFamily: 'inherit',
-                    }}
-                />
+                type="text"
+                value={localPatternId}
+                onChange={(e) => setLocalPatternId(e.target.value)}
+                onBlur={() => {
+                    const newId = localPatternId.trim();
+                    if (!newId) {
+                        alert("Имя паттерна не может быть пустым");
+                        setLocalPatternId(originalPatternId);
+                        return;
+                    }
+
+                    if (newId !== originalPatternId && allPatterns[newId]) {
+                        alert("Паттерн с таким именем уже существует");
+                        setLocalPatternId(originalPatternId);
+                    }
+                }}
+                placeholder="Введите название паттерна"
+                style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #ddd',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    fontFamily: 'inherit',
+                }}
+            />
             </div>
 
             {/* Свойства паттерна */}
