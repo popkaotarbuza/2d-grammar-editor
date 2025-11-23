@@ -3,7 +3,7 @@ import { parse } from 'yaml';
 import { extractPatterns } from '../entities/import-yaml.js'
 import { cleanEmptyPatternComponents } from '../entities/import-yaml.js'
 
-const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange }) => {
+const Header = ({ onOpen, onSave, onSaveAs, fileName, onFileNameChange }) => {
     const handleOpen = () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -59,12 +59,6 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
     const handleSaveAs = () => {
         if (onSaveAs) {
             onSaveAs();
-        }
-    };
-
-    const handleExport = () => { // Из JSON в YAML Обратно
-        if (onExport) {
-            onExport();
         }
     };
 
@@ -156,27 +150,6 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                     }}
                 >
                     Сохранить как
-                </button>
-                <button
-                    onClick={handleExport}
-                    style={{
-                        backgroundColor: 'transparent',
-                        color: '#ffffff',
-                        border: 'none',
-                        padding: '8px 16px',
-                        fontSize: '22px',
-                        cursor: 'pointer',
-                        fontWeight: '500',
-                        fontFamily: 'Inter, sans-serif',
-                    }}
-                    onMouseEnter={(e) => {
-                        e.target.style.opacity = '0.8';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.target.style.opacity = '1';
-                    }}
-                >
-                    Экспорт
                 </button>
             </div>
 

@@ -338,18 +338,6 @@ const App = () => {
 };
 
   /**
-   * Обработчик экспорта
-   */
-  const handleExport = () => {
-    const data = {
-      patterns: patterns,
-      blocks: blocks,
-      fileName: fileName || 'untitled',
-    };
-    downloadJSON(data, `${fileName || 'export'}.json`);
-  };
-
-  /**
    * Утилита для скачивания JSON файла
    */
   const downloadJSON = (data, filename) => {
@@ -801,7 +789,6 @@ const App = () => {
         onOpen={handleOpen}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
-        onExport={handleExport}
         fileName={fileName}
         onFileNameChange={setFileName}
       />
