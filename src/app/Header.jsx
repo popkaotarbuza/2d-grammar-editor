@@ -1,5 +1,6 @@
 import React from 'react';
 import { parse } from 'yaml';
+import { extractPatterns } from '../entities/import-yaml.js'
 
 const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange }) => {
     const handleOpen = () => {
@@ -16,12 +17,22 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                         let content;
                         
                         if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
-                            content = parse(fileContent);
+                            // Для YAML файлов: парсим и извлекаем паттерны
+                            const parsedYaml = parse(fileContent);
+                            const patterns = extractPatterns(parsedYaml);
+                            content = {
+                                patterns: patterns,
+                                blocks: []
+                            };
                         } else {
+                            // Для JSON файлов: парсим напрямую
                             content = JSON.parse(fileContent);
                         }
                         
                         onOpen(content, file.name);
+                        
+                        console.log('Загружен файл:', file.name);
+                        console.log('Паттерны:', content.patterns);
                     } catch (error) {
                         console.error('Ошибка при чтении файла:', error);
                         alert('Не удалось открыть файл: ' + error.message);
@@ -45,7 +56,7 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
         }
     };
 
-    const handleExport = () => {
+    const handleExport = () => { // Из JSON в YAML Обратно
         if (onExport) {
             onExport();
         }

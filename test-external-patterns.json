@@ -1,0 +1,73 @@
+{
+  "patterns": {
+    "central_box": {
+      "kind": "area",
+      "description": "Центральный блок с внешними паттернами вокруг",
+      "inner": {},
+      "outer": {
+        "left_panel": {
+          "pattern": null,
+          "location": {
+            "left": "0",
+            "top": "0",
+            "bottom": "0"
+          }
+        },
+        "right_panel": {
+          "pattern": null,
+          "location": {
+            "right": "0",
+            "top": "0",
+            "bottom": "0"
+          }
+        },
+        "top_bar": {
+          "pattern": null,
+          "location": {
+            "top": "0",
+            "left": "0",
+            "right": "0"
+          }
+        },
+        "bottom_bar": {
+          "pattern": null,
+          "location": {
+            "bottom": "0",
+            "left": "0",
+            "right": "0"
+          }
+        },
+        "top_left_corner": {
+          "pattern": null,
+          "location": {
+            "left": "0",
+            "top": "0"
+          }
+        },
+        "top_right_corner": {
+          "pattern": null,
+          "location": {
+            "right": "0",
+            "top": "0"
+          }
+        },
+        "bottom_left_corner": {
+          "pattern": null,
+          "location": {
+            "left": "0",
+            "bottom": "0"
+          }
+        },
+        "bottom_right_corner": {
+          "pattern": null,
+          "location": {
+            "right": "0",
+            "bottom": "0"
+          }
+        }
+      }
+    }
+  },
+  "blocks": [],
+  "fileName": "test-external-patterns"
+}

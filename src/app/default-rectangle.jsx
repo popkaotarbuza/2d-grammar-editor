@@ -1,5 +1,5 @@
 import React from 'react';
-import { Group, Rect } from 'react-konva';
+import { Group, Rect, Text } from 'react-konva';
 
 const DefaultExternalRectangle = ({
   id,
@@ -10,8 +10,11 @@ const DefaultExternalRectangle = ({
   text = 'Внешний паттерн',
   fill = '#D9D9D9',
   isSelected = false,
+  draggable = true,
+  dragBoundFunc,
   onSelect,
   onDragEnd,
+  onDragMove,
   nodeRef,
   stageSize, 
 }) => {
@@ -37,8 +40,8 @@ const DefaultExternalRectangle = ({
     );
   };
 
-  // Функция для ограничения внешних паттернов - они не должны попадать во внутреннюю область
-  const dragBoundFunc = (pos) => {
+  // Функция для ограничения внешних паттернов - они не должны попадать во внутреннюю область (по умолчанию)
+  const defaultDragBoundFunc = (pos) => {
     const patternWidth = width;
     const patternHeight = height;
     const stageW = stageSize.width;
@@ -97,6 +100,9 @@ const DefaultExternalRectangle = ({
     return { x: newX, y: newY };
   };
 
+  // Используем переданную функцию или дефолтную
+  const finalDragBoundFunc = dragBoundFunc || defaultDragBoundFunc;
+
   return (
     <Group
       id={id}
@@ -106,8 +112,9 @@ const DefaultExternalRectangle = ({
       name="rect"
       onClick={onSelect}
       onTap={onSelect}
-      draggable={true}
-      dragBoundFunc={dragBoundFunc}
+      draggable={draggable}
+      dragBoundFunc={finalDragBoundFunc}
+      onDragMove={onDragMove}
       onDragEnd={onDragEnd}
     >
       <Rect
@@ -115,8 +122,23 @@ const DefaultExternalRectangle = ({
         height={height}
         fill={fill}
         cornerRadius={8}
-        stroke="#949494"
-        strokeWidth={1}
+        stroke={isSelected ? "#D72B00" : "#949494"}
+        strokeWidth={isSelected ? 2 : 1}
+      />
+      <Text
+        x={width / 2}
+        y={height / 2}
+        text={text}
+        fontSize={12}
+        fontFamily="Inter, sans-serif"
+        fill="#333"
+        align="center"
+        verticalAlign="middle"
+        offsetX={width / 2}
+        offsetY={height / 2}
+        width={width}
+        height={height}
+        wrap="word"
       />
     </Group>
   );

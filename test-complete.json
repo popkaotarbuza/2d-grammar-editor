@@ -1,0 +1,56 @@
+{
+  "patterns": {
+    "main_container": {
+      "kind": "area",
+      "description": "Главный контейнер для демонстрации всех возможностей",
+      "inner": {
+        "header": {
+          "pattern": null,
+          "location": {
+            "top": "0",
+            "left": "0",
+            "right": "0"
+          }
+        },
+        "sidebar": {
+          "pattern": null,
+          "location": {
+            "left": "0",
+            "top": "0",
+            "bottom": "0"
+          }
+        },
+        "content": {
+          "pattern": null,
+          "location": {}
+        },
+        "footer": {
+          "pattern": null,
+          "location": {
+            "bottom": "0",
+            "left": "0",
+            "right": "0"
+          }
+        }
+      },
+      "outer": {
+        "external_menu": {
+          "pattern": null,
+          "location": {
+            "left": "0",
+            "top": "0"
+          }
+        },
+        "external_toolbar": {
+          "pattern": null,
+          "location": {
+            "right": "0",
+            "top": "0"
+          }
+        }
+      }
+    }
+  },
+  "blocks": [],
+  "fileName": "test-complete"
+}

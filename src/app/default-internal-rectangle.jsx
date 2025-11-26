@@ -1,5 +1,5 @@
 import React from 'react';
-import { Group, Rect } from 'react-konva';
+import { Group, Rect, Text } from 'react-konva';
 
 const DefaultInternalRectangle = ({
   id,
@@ -10,8 +10,11 @@ const DefaultInternalRectangle = ({
   text = 'Внутренний паттерн',
   fill = '#D9D9D9',
   isSelected = false,
+  draggable = true,
+  dragBoundFunc,
   onSelect,
   onDragEnd,
+  onDragMove,
   nodeRef,
   stageSize,
 }) => {
@@ -21,8 +24,8 @@ const DefaultInternalRectangle = ({
   const innerRectWidth = stageSize.width / 1.5;
   const innerRectHeight = stageSize.height / 1.5;
 
-  // Функция для ограничения движения внутри внутреннего квадрата
-  const dragBoundFunc = (pos) => {
+  // Функция для ограничения движения внутри внутреннего квадрата (по умолчанию)
+  const defaultDragBoundFunc = (pos) => {
     const minX = innerRectX;
     const maxX = innerRectX + innerRectWidth - width;
     const minY = innerRectY;
@@ -34,6 +37,9 @@ const DefaultInternalRectangle = ({
     return { x: newX, y: newY };
   };
 
+  // Используем переданную функцию или дефолтную
+  const finalDragBoundFunc = dragBoundFunc || defaultDragBoundFunc;
+
   return (
     <Group
       id={id}
@@ -43,8 +49,9 @@ const DefaultInternalRectangle = ({
       name="rect"
       onClick={onSelect}
       onTap={onSelect}
-      draggable={true}
-      dragBoundFunc={dragBoundFunc}
+      draggable={draggable}
+      dragBoundFunc={finalDragBoundFunc}
+      onDragMove={onDragMove}
       onDragEnd={onDragEnd}
     >
       <Rect
@@ -52,8 +59,23 @@ const DefaultInternalRectangle = ({
         height={height}
         fill={fill}
         cornerRadius={8}
-        stroke="#949494"
-        strokeWidth={1}
+        stroke={isSelected ? "#D72B00" : "#949494"}
+        strokeWidth={isSelected ? 2 : 1}
+      />
+      <Text
+        x={width / 2}
+        y={height / 2}
+        text={text}
+        fontSize={12}
+        fontFamily="Inter, sans-serif"
+        fill="#333"
+        align="center"
+        verticalAlign="middle"
+        offsetX={width / 2}
+        offsetY={height / 2}
+        width={width}
+        height={height}
+        wrap="word"
       />
     </Group>
   );

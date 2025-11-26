@@ -1,14 +1,5 @@
-// импорт данных из YAML файлов
-import { parse } from 'yaml';
-import { readFileSync } from 'fs';
 
-const pathToFile = '../../data/to-import/';
-const fileName = "grammar-root";
-const yamlContent = readFileSync(pathToFile + fileName + '.yaml', 'utf8');
-
-const rawYaml = parse(yamlContent);
-console.log("Исходный YAML\n", rawYaml);
-
+// Функция для извлечения паттернов из YAML данных
 // Функция для извлечения паттернов из YAML данных
 function extractPatterns(yamlData, patterns = {}) {
     if ('patterns' in yamlData) {
@@ -16,6 +7,11 @@ function extractPatterns(yamlData, patterns = {}) {
     }
     for (const [name, properties] of Object.entries(yamlData)) {
         if (!properties || typeof properties !== 'object' || Array.isArray(properties)) continue;
+
+    // === ПРОВЕРКА УНИКАЛЬНОСТИ ИМЕНИ ===
+    if (patterns[name] !== undefined) {
+        throw new Error(`Паттерн с именем "${name}" уже существует. Выберите другое имя.`);
+    }
 
         // Создаём паттерн с 4 обязательными полями
         patterns[name] = {
@@ -95,7 +91,20 @@ function extractPatterns(yamlData, patterns = {}) {
 
                     // === РЕКУРСИЯ: если у дочернего есть pattern_definition или pattern ===
                     if ('pattern_definition' in childProps) {
-                        extractPatterns({ [childName]: childProps }, patterns);
+
+                        const inlineName = `${childName}_inline`;
+
+                        // Выносим дочерний паттерн на верхний уровень
+                        extractPatterns({ [inlineName]: childProps }, patterns);
+
+                        // Меняем ссылку у родителя:
+                        // Был childName, стал inlineName
+                        container[childName].pattern = inlineName;
+                    } 
+                    else if (container[childName].pattern === null) {
+                        
+                        // Если не inline, имя паттерна = имя ключа
+                        container[childName].pattern = childName;
                     }
                 }
             } else if (key !== 'pattern_definition' && key !== 'item_pattern' && key !== 'location' && key !== 'pattern') {
@@ -108,8 +117,8 @@ function extractPatterns(yamlData, patterns = {}) {
     return patterns;
 }
 
-// === ЗАПУСК ===
-const patterns = extractPatterns(rawYaml);
-console.log("Переработанный YAML в JSON\n", patterns);
+// // === ЗАПУСК ===
+// const patterns = extractPatterns(rawYaml);
+// console.log("Переработанный YAML в JSON\n", patterns);
 
-export { patterns, fileName };
+export { extractPatterns };
