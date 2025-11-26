@@ -407,6 +407,8 @@ const App = () => {
     ]);
   };
 
+
+
   /**
    * Создает новый внутренний паттерн
    * Добавляет паттерн в список patterns и создает блок внутри внутренней области
@@ -524,6 +526,9 @@ const App = () => {
       </Layer>
     );
   };
+
+
+  
 
   // ==================== Рендер паттернов ====================
   
@@ -785,7 +790,7 @@ const App = () => {
       };
 
       if (type === 'internal') {
-        childElements.push(<DefaultInternalRectangle {...commonProps} />);
+        childElements.push(<DefaultInternalRectangle {...commonProps}  />);
       } else {
         childElements.push(<DefaultExternalRectangle {...commonProps} />);
       }
@@ -824,7 +829,8 @@ const App = () => {
           text: '',
           isSelected: selectedIds.includes(block.id),
           onSelect: handleBlockSelect,
-          onDragEnd: handleDragEnd,
+          /*onDragEnd: handleDragEnd,*/
+          draggable:false,
           nodeRef: (node) => {
             if (node) rectRefs.current.set(block.id, node);
           },
@@ -833,7 +839,8 @@ const App = () => {
 
         return block.type === 'internal' 
           ? <DefaultInternalRectangle {...commonProps} />
-          : <DefaultExternalRectangle {...commonProps} />;
+          : <DefaultExternalRectangle {...commonProps} 
+          />;
       })}
 
       {/* Отрисовываем дочерние паттерны выбранного паттерна */}
@@ -903,7 +910,7 @@ const App = () => {
           overflow: 'auto', 
           minWidth: 0 
         }}>
-          {/* Кнопки создания паттернов 
+          {/* Кнопки создания паттернов*/}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
             <button
               onClick={createExternalPattern}
@@ -938,7 +945,7 @@ const App = () => {
               Добавить внутренний паттерн
             </button>
           </div>
-            */}
+            
           {/* Контейнер Stage */}
           <div style={containerStyles.stageContainer}>
             <Stage

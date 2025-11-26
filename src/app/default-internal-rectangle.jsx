@@ -1,59 +1,54 @@
-import React from 'react';
-import { Group, Rect, Text } from 'react-konva';
+import React, { useState } from "react";
+import { Group, Rect, Text } from "react-konva";
 
 const DefaultInternalRectangle = ({
   id,
-  x = 0,
-  y = 0,
-  width = 100,
-  height = 70,
-  text = 'Внутренний паттерн',
-  fill = '#D9D9D9',
-  isSelected = false,
-  draggable = true,
-  dragBoundFunc,
-  onSelect,
-  onDragEnd,
-  onDragMove,
-  nodeRef,
+  x,
+  y,
+  width,
+  height,
+  text,
+  fill,
+  isSelected,
   stageSize,
+  setPosition, // <--- обязательно передаётся сверху
 }) => {
-  // Вычисляем границы внутреннего квадрата
+  const [shake, setShake] = useState(false);
+
   const innerRectX = (stageSize.width - stageSize.width / 1.5) / 2;
   const innerRectY = (stageSize.height - stageSize.height / 1.5) / 2;
   const innerRectWidth = stageSize.width / 1.5;
   const innerRectHeight = stageSize.height / 1.5;
 
-  // Функция для ограничения движения внутри внутреннего квадрата (по умолчанию)
-  const defaultDragBoundFunc = (pos) => {
-    const minX = innerRectX;
-    const maxX = innerRectX + innerRectWidth - width;
-    const minY = innerRectY;
-    const maxY = innerRectY + innerRectHeight - height;
+  const moveStep = 20;
 
-    const newX = Math.max(minX, Math.min(pos.x, maxX));
-    const newY = Math.max(minY, Math.min(pos.y, maxY));
+  const move = (direction) => {
+    let newX = x;
+    let newY = y;
 
-    return { x: newX, y: newY };
+    if (direction === "up") newY -= moveStep;
+    if (direction === "down") newY += moveStep;
+    if (direction === "left") newX -= moveStep;
+    if (direction === "right") newX += moveStep;
+
+    const limit =
+      newX < innerRectX ||
+      newY < innerRectY ||
+      newX + width > innerRectX + innerRectWidth ||
+      newY + height > innerRectY + innerRectHeight;
+
+    if (limit) return triggerShake();
+
+    setPosition(id, newX, newY);
   };
 
-  // Используем переданную функцию или дефолтную
-  const finalDragBoundFunc = dragBoundFunc || defaultDragBoundFunc;
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 150);
+  };
 
   return (
-    <Group
-      id={id}
-      x={x}
-      y={y}
-      ref={nodeRef}
-      name="rect"
-      onClick={onSelect}
-      onTap={onSelect}
-      draggable={draggable}
-      dragBoundFunc={finalDragBoundFunc}
-      onDragMove={onDragMove}
-      onDragEnd={onDragEnd}
-    >
+    <Group x={x} y={y} draggable={false} scaleX={shake ? 1.05 : 1} scaleY={shake ? 1.05 : 1}>
       <Rect
         width={width}
         height={height}
@@ -62,24 +57,26 @@ const DefaultInternalRectangle = ({
         stroke={isSelected ? "#D72B00" : "#949494"}
         strokeWidth={isSelected ? 2 : 1}
       />
+
       <Text
-        x={width / 2}
-        y={height / 2}
         text={text}
-        fontSize={12}
-        fontFamily="Inter, sans-serif"
-        fill="#333"
+        x={10}
+        y={10}
+        width={width - 20}
+        height={height - 20}
         align="center"
         verticalAlign="middle"
-        offsetX={width / 2}
-        offsetY={height / 2}
-        width={width}
-        height={height}
-        wrap="word"
+        fontSize={12}
+        fill="#333"
       />
+
+      {/* --- стрелки --- */}
+      <Text text="▲" x={width/2 - 6} y={-20} fontSize={18} cursor="pointer" onClick={() => move("up")} />
+      <Text text="▼" x={width/2 - 6} y={height + 2} fontSize={18} cursor="pointer" onClick={() => move("down")} />
+      <Text text="◀" x={-20} y={height/2 - 10} fontSize={18} cursor="pointer" onClick={() => move("left")} />
+      <Text text="▶" x={width + 2} y={height/2 - 10} fontSize={18} cursor="pointer" onClick={() => move("right")} />
     </Group>
   );
 };
 
 export { DefaultInternalRectangle };
-
