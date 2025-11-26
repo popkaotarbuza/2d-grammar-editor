@@ -20,7 +20,7 @@ import { LeftSidebar } from './LeftSidebar.jsx';
 import { RightSidebar } from './RightSidebar.jsx';
 import { SIZES, COLORS, DEFAULT_PATTERN } from './constants.js';
 import { containerStyles } from './styles.js';
-import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition } from './utils.js';
+import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition, checkCollision, getFixedSides } from './utils.js';
 import './mainWindow.css';
 
 const App = () => {
@@ -64,6 +64,9 @@ const App = () => {
     x1: 0, y1: 0, x2: 0, y2: 0,
   });
 
+  // Состояние для позиций дочерних паттернов (для физики и перетаскивания)
+  const [childPatternPositions, setChildPatternPositions] = useState({});
+
   // Refs
   const isSelecting = useRef(false); // Флаг начала выделения
   const rectRefs = useRef(new Map()); // Map для быстрого доступа к узлам по ID
@@ -81,6 +84,13 @@ const App = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  /**
+   * Сбрасывает позиции дочерних паттернов при смене выбранного паттерна
+   */
+  useEffect(() => {
+    setChildPatternPositions({});
+  }, [selectedPatternId]);
 
   // ==================== Обработчики событий Stage ====================
   
@@ -527,16 +537,19 @@ const App = () => {
     const innerPatterns = parentPattern.inner || {};
     const outerPatterns = parentPattern.outer || {};
 
-    // Размещаем родительский паттерн по центру поля
-    const parentWidth = DEFAULT_PATTERN.EXTERNAL.width;
-    const parentHeight = DEFAULT_PATTERN.EXTERNAL.height;
-    const parentX = (stageSize.width - parentWidth) / 2;
-    const parentY = (stageSize.height - parentHeight) / 2;
-    const parentBounds = { x: parentX, y: parentY, width: parentWidth, height: parentHeight };
+    // Используем границы внутреннего прямоугольника как родительские границы
+    const innerRect = getInnerRectBounds(stageSize);
+    const parentBounds = {
+      x: innerRect.x,
+      y: innerRect.y,
+      width: innerRect.width,
+      height: innerRect.height
+    };
 
-    const childElements = [];
+    // Сначала собираем информацию о всех паттернах
+    const patternInfos = [];
 
-    // Отрисовываем внутренние паттерны
+    // Собираем внутренние паттерны
     Object.entries(innerPatterns).forEach(([componentName, componentData]) => {
       if (!componentData || !componentData.pattern) return;
 
@@ -549,32 +562,32 @@ const App = () => {
         height: DEFAULT_PATTERN.INTERNAL.height,
       };
 
-      const position = calculateChildPosition(
+      const positionAndSize = calculateChildPosition(
         componentData.location,
         parentBounds,
         childSize,
         true // isInner
       );
 
-      childElements.push(
-        <DefaultInternalRectangle
-          key={`inner-${componentName}`}
-          id={`inner-${componentName}`}
-          x={position.x}
-          y={position.y}
-          width={childSize.width}
-          height={childSize.height}
-          text={componentName}
-          isSelected={false}
-          onSelect={() => {}}
-          onDragEnd={() => {}}
-          nodeRef={() => {}}
-          stageSize={stageSize}
-        />
-      );
+      const savedPosition = childPatternPositions[componentName];
+      const finalX = savedPosition?.x ?? positionAndSize.x;
+      const finalY = savedPosition?.y ?? positionAndSize.y;
+
+      const fixedSides = getFixedSides(componentData.location);
+
+      patternInfos.push({
+        componentName,
+        type: 'internal',
+        x: finalX,
+        y: finalY,
+        width: positionAndSize.width,
+        height: positionAndSize.height,
+        fixedSides,
+        initialBounds: positionAndSize,
+      });
     });
 
-    // Отрисовываем внешние паттерны
+    // Собираем внешние паттерны
     Object.entries(outerPatterns).forEach(([componentName, componentData]) => {
       if (!componentData || !componentData.pattern) return;
 
@@ -587,29 +600,195 @@ const App = () => {
         height: DEFAULT_PATTERN.EXTERNAL.height,
       };
 
-      const position = calculateChildPosition(
+      const positionAndSize = calculateChildPosition(
         componentData.location,
         parentBounds,
         childSize,
         false // isInner
       );
 
-      childElements.push(
-        <DefaultExternalRectangle
-          key={`outer-${componentName}`}
-          id={`outer-${componentName}`}
-          x={position.x}
-          y={position.y}
-          width={childSize.width}
-          height={childSize.height}
-          text={componentName}
-          isSelected={false}
-          onSelect={() => {}}
-          onDragEnd={() => {}}
-          nodeRef={() => {}}
-          stageSize={stageSize}
-        />
-      );
+      const savedPosition = childPatternPositions[componentName];
+      const finalX = savedPosition?.x ?? positionAndSize.x;
+      const finalY = savedPosition?.y ?? positionAndSize.y;
+
+      const fixedSides = getFixedSides(componentData.location);
+
+      patternInfos.push({
+        componentName,
+        type: 'external',
+        x: finalX,
+        y: finalY,
+        width: positionAndSize.width,
+        height: positionAndSize.height,
+        fixedSides,
+        initialBounds: positionAndSize,
+      });
+    });
+
+    /**
+     * Создает функцию dragBoundFunc для паттерна с проверкой столкновений
+     */
+    const createDragBoundFunc = (currentPatternInfo) => {
+      return (pos) => {
+        const { componentName, type, width, height, fixedSides, initialBounds } = currentPatternInfo;
+        
+        let newX = pos.x;
+        let newY = pos.y;
+        const oldX = currentPatternInfo.x;
+        const oldY = currentPatternInfo.y;
+
+        // Ограничиваем движение по зафиксированным сторонам
+        if (fixedSides.left && fixedSides.right) {
+          newX = initialBounds.x;
+        } else if (fixedSides.left) {
+          newX = initialBounds.x;
+        } else if (fixedSides.right) {
+          newX = initialBounds.x;
+        }
+
+        if (fixedSides.top && fixedSides.bottom) {
+          newY = initialBounds.y;
+        } else if (fixedSides.top) {
+          newY = initialBounds.y;
+        } else if (fixedSides.bottom) {
+          newY = initialBounds.y;
+        }
+
+        // Ограничиваем границами
+        if (type === 'internal') {
+          // Для внутренних паттернов - ограничиваем внутри parentBounds
+          newX = Math.max(parentBounds.x, Math.min(newX, parentBounds.x + parentBounds.width - width));
+          newY = Math.max(parentBounds.y, Math.min(newY, parentBounds.y + parentBounds.height - height));
+        } else {
+          // Для внешних паттернов - ограничиваем в зависимости от прикрепленной стороны
+          
+          // Определяем, к какой стороне прикреплен паттерн
+          const isAttachedLeft = fixedSides.left;
+          const isAttachedRight = fixedSides.right;
+          const isAttachedTop = fixedSides.top;
+          const isAttachedBottom = fixedSides.bottom;
+
+          if (isAttachedLeft) {
+            // Прикреплен к левой стороне - может двигаться только вдоль левой границы
+            newX = initialBounds.x; // Фиксируем X
+            // Y ограничиваем высотой родительского контейнера
+            newY = Math.max(parentBounds.y, Math.min(newY, parentBounds.y + parentBounds.height - height));
+          } else if (isAttachedRight) {
+            // Прикреплен к правой стороне - может двигаться только вдоль правой границы
+            newX = initialBounds.x; // Фиксируем X
+            // Y ограничиваем высотой родительского контейнера
+            newY = Math.max(parentBounds.y, Math.min(newY, parentBounds.y + parentBounds.height - height));
+          } else if (isAttachedTop) {
+            // Прикреплен к верхней стороне - может двигаться только вдоль верхней границы
+            newY = initialBounds.y; // Фиксируем Y
+            // X ограничиваем шириной родительского контейнера
+            newX = Math.max(parentBounds.x, Math.min(newX, parentBounds.x + parentBounds.width - width));
+          } else if (isAttachedBottom) {
+            // Прикреплен к нижней стороне - может двигаться только вдоль нижней границы
+            newY = initialBounds.y; // Фиксируем Y
+            // X ограничиваем шириной родительского контейнера
+            newX = Math.max(parentBounds.x, Math.min(newX, parentBounds.x + parentBounds.width - width));
+          } else {
+            // Не прикреплен ни к одной стороне - ограничиваем границами Stage
+            newX = Math.max(0, Math.min(newX, stageSize.width - width));
+            newY = Math.max(0, Math.min(newY, stageSize.height - height));
+          }
+        }
+
+        // Проверяем столкновения с другими паттернами
+        for (const otherPattern of patternInfos) {
+          if (otherPattern.componentName === componentName) continue;
+          
+          const otherRect = {
+            x: otherPattern.x,
+            y: otherPattern.y,
+            width: otherPattern.width,
+            height: otherPattern.height
+          };
+
+          // Проверяем столкновение с новой позицией
+          const testRect = { x: newX, y: newY, width, height };
+          
+          if (checkCollision(testRect, otherRect)) {
+            // Есть столкновение - пытаемся двигаться только по одной оси
+            
+            // Пробуем двигаться только по X (сохраняя старый Y)
+            const testRectX = { x: newX, y: oldY, width, height };
+            const canMoveX = !checkCollision(testRectX, otherRect);
+            
+            // Пробуем двигаться только по Y (сохраняя старый X)
+            const testRectY = { x: oldX, y: newY, width, height };
+            const canMoveY = !checkCollision(testRectY, otherRect);
+            
+            if (canMoveX && !canMoveY) {
+              // Можем двигаться только по X
+              newY = oldY;
+            } else if (canMoveY && !canMoveX) {
+              // Можем двигаться только по Y
+              newX = oldX;
+            } else {
+              // Не можем двигаться ни по одной оси - останавливаемся
+              newX = oldX;
+              newY = oldY;
+            }
+          }
+        }
+
+        return { x: newX, y: newY };
+      };
+    };
+
+    /**
+     * Обработчик завершения перетаскивания
+     */
+    const handleChildDragEnd = (e, componentName) => {
+      const node = e.target;
+      const newX = node.x();
+      const newY = node.y();
+      
+      // Обновляем позицию в состоянии
+      setChildPatternPositions(prev => ({
+        ...prev,
+        [componentName]: { x: newX, y: newY }
+      }));
+
+      // Обновляем позицию в patternInfos для последующих проверок
+      const patternInfo = patternInfos.find(p => p.componentName === componentName);
+      if (patternInfo) {
+        patternInfo.x = newX;
+        patternInfo.y = newY;
+      }
+    };
+
+    const childElements = [];
+
+    // Рендерим все паттерны
+    patternInfos.forEach((patternInfo) => {
+      const { componentName, type, x, y, width, height, fixedSides } = patternInfo;
+      const isDraggable = !(fixedSides.left && fixedSides.right && fixedSides.top && fixedSides.bottom);
+
+      const commonProps = {
+        key: `${type}-${componentName}`,
+        id: `${type}-${componentName}`,
+        x,
+        y,
+        width,
+        height,
+        text: componentName,
+        isSelected: false,
+        draggable: isDraggable,
+        dragBoundFunc: createDragBoundFunc(patternInfo),
+        onDragEnd: (e) => handleChildDragEnd(e, componentName),
+        onSelect: () => {},
+        nodeRef: () => {},
+        stageSize,
+      };
+
+      if (type === 'internal') {
+        childElements.push(<DefaultInternalRectangle {...commonProps} />);
+      } else {
+        childElements.push(<DefaultExternalRectangle {...commonProps} />);
+      }
     });
 
     return childElements;

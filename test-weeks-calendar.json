@@ -1,0 +1,33 @@
+{
+  "patterns": {
+    "weeks_calendar": {
+      "kind": "area",
+      "size": "5+ x 59+",
+      "inner": {
+        "month_names": {
+          "pattern": null,
+          "location": {
+            "top": "0",
+            "left": "0..1",
+            "right": "0..2"
+          }
+        },
+        "weeks": {
+          "pattern": null,
+          "location": {
+            "left": "0",
+            "right": "0",
+            "bottom": "0"
+          }
+        }
+      },
+      "outer": {},
+      "description": "левый заголовок таблицы с днями и часами",
+      "style": {
+        "borders": "left, top, bottom"
+      }
+    }
+  },
+  "blocks": [],
+  "fileName": "test-weeks-calendar"
+}

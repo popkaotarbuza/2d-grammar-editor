@@ -10,8 +10,11 @@ const DefaultExternalRectangle = ({
   text = 'Внешний паттерн',
   fill = '#D9D9D9',
   isSelected = false,
+  draggable = true,
+  dragBoundFunc,
   onSelect,
   onDragEnd,
+  onDragMove,
   nodeRef,
   stageSize, 
 }) => {
@@ -37,8 +40,8 @@ const DefaultExternalRectangle = ({
     );
   };
 
-  // Функция для ограничения внешних паттернов - они не должны попадать во внутреннюю область
-  const dragBoundFunc = (pos) => {
+  // Функция для ограничения внешних паттернов - они не должны попадать во внутреннюю область (по умолчанию)
+  const defaultDragBoundFunc = (pos) => {
     const patternWidth = width;
     const patternHeight = height;
     const stageW = stageSize.width;
@@ -97,6 +100,9 @@ const DefaultExternalRectangle = ({
     return { x: newX, y: newY };
   };
 
+  // Используем переданную функцию или дефолтную
+  const finalDragBoundFunc = dragBoundFunc || defaultDragBoundFunc;
+
   return (
     <Group
       id={id}
@@ -106,8 +112,9 @@ const DefaultExternalRectangle = ({
       name="rect"
       onClick={onSelect}
       onTap={onSelect}
-      draggable={true}
-      dragBoundFunc={dragBoundFunc}
+      draggable={draggable}
+      dragBoundFunc={finalDragBoundFunc}
+      onDragMove={onDragMove}
       onDragEnd={onDragEnd}
     >
       <Rect
