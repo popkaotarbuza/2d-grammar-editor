@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 
 const DefaultExternalRectangle = ({
@@ -17,87 +17,57 @@ const DefaultExternalRectangle = ({
   onDragMove,
   nodeRef,
   stageSize, 
+  setPosition, // <--- обязательно передаётся сверху для перемещения по стрелкам
 }) => {
+  const [shake, setShake] = useState(false);
+
   // Вычисляем границы внутреннего квадрата
   const innerRectX = (stageSize.width - stageSize.width / 1.5) / 2;
   const innerRectY = (stageSize.height - stageSize.height / 1.5) / 2;
   const innerRectWidth = stageSize.width / 1.5;
   const innerRectHeight = stageSize.height / 1.5;
 
-  // Функция для проверки пересечения с внутренней областью
+  const moveStep = 20;                              // Ширина шага в пикселях
+
+  const move = (direction) => {
+    let newX = x;
+    let newY = y;
+
+    if (direction === "up") newY -= moveStep;
+    if (direction === "down") newY += moveStep;
+    if (direction === "left") newX -= moveStep;
+    if (direction === "right") newX += moveStep;
+
+    // Проверяем пересечение с внутренней областью
+    const intersects = intersectsInnerArea(newX, newY, width, height);
+
+    // Также ограничиваем границами stage
+    newX = Math.max(0, Math.min(newX, stageSize.width - width));
+    newY = Math.max(0, Math.min(newY, stageSize.height - height));
+
+    if (intersects) return triggerShake();
+
+    setPosition(id, newX, newY);
+  };
+
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 150);
+  };
+
+  // Функция для проверки пересечения с внутренней областью (как в оригинале)
   const intersectsInnerArea = (posX, posY, patternWidth, patternHeight) => {
     const patternRight = posX + patternWidth;
     const patternBottom = posY + patternHeight;
     const innerRight = innerRectX + innerRectWidth;
     const innerBottom = innerRectY + innerRectHeight;
 
-    // Проверяем, не пересекается ли паттерн с внутренней областью
     return !(
       patternRight <= innerRectX || 
       posX >= innerRight || 
       patternBottom <= innerRectY || 
       posY >= innerBottom
     );
-  };
-
-  // Функция для ограничения внешних паттернов - они не должны попадать во внутреннюю область (по умолчанию)
-  const defaultDragBoundFunc = (pos) => {
-    const patternWidth = width;
-    const patternHeight = height;
-    const stageW = stageSize.width;
-    const stageH = stageSize.height;
-
-    // Строго ограничиваем границами сцены, чтобы паттерн полностью оставался внутри
-    // Убеждаемся, что весь паттерн помещается: x >= 0, x + width <= stageW
-    let newX = Math.max(0, Math.min(Math.max(0, pos.x), Math.max(0, stageW - patternWidth)));
-    let newY = Math.max(0, Math.min(Math.max(0, pos.y), Math.max(0, stageH - patternHeight)));
-
-    // Дополнительная проверка: убеждаемся, что правая и нижняя границы не выходят
-    if (newX + patternWidth > stageW) {
-      newX = Math.max(0, stageW - patternWidth);
-    }
-    if (newY + patternHeight > stageH) {
-      newY = Math.max(0, stageH - patternHeight);
-    }
-
-    // Если паттерн пересекается с внутренней областью, сдвигаем его наружу
-    if (intersectsInnerArea(newX, newY, patternWidth, patternHeight)) {
-      const innerRight = innerRectX + innerRectWidth;
-      const innerBottom = innerRectY + innerRectHeight;
-
-      // Вычисляем расстояния до каждой стороны внутренней области
-      const distToLeft = newX + patternWidth - innerRectX;
-      const distToRight = innerRight - newX;
-      const distToTop = newY + patternHeight - innerRectY;
-      const distToBottom = innerBottom - newY;
-
-      // Выбираем наименьшее расстояние и сдвигаем паттерн
-      const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
-
-      if (minDist === distToLeft) {
-        newX = Math.max(0, innerRectX - patternWidth);
-      } else if (minDist === distToRight) {
-        newX = Math.min(Math.max(0, stageW - patternWidth), innerRight);
-      } else if (minDist === distToTop) {
-        newY = Math.max(0, innerRectY - patternHeight);
-      } else {
-        newY = Math.min(Math.max(0, stageH - patternHeight), innerBottom);
-      }
-
-      // Финальная строгая проверка границ сцены после сдвига
-      newX = Math.max(0, Math.min(newX, Math.max(0, stageW - patternWidth)));
-      newY = Math.max(0, Math.min(newY, Math.max(0, stageH - patternHeight)));
-      
-      // Дополнительная проверка правой и нижней границ
-      if (newX + patternWidth > stageW) {
-        newX = Math.max(0, stageW - patternWidth);
-      }
-      if (newY + patternHeight > stageH) {
-        newY = Math.max(0, stageH - patternHeight);
-      }
-    }
-
-    return { x: newX, y: newY };
   };
 
   // Используем переданную функцию или дефолтную
@@ -113,6 +83,8 @@ const DefaultExternalRectangle = ({
       onClick={onSelect}
       onTap={onSelect}
       draggable={false}
+      scaleX={shake ? 1.05 : 1}
+      scaleY={shake ? 1.05 : 1}
       /*dragBoundFunc={finalDragBoundFunc}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}*/
@@ -140,6 +112,12 @@ const DefaultExternalRectangle = ({
         height={height}
         wrap="word"
       />
+
+      {/* --- стрелки (добавлено для перемещения) --- */}
+      <Text text="▲" x={width/2 - 6} y={-20} fontSize={18} cursor="pointer" onClick={() => move("up")} />
+      <Text text="▼" x={width/2 - 6} y={height + 2} fontSize={18} cursor="pointer" onClick={() => move("down")} />
+      <Text text="◀" x={-20} y={height/2 - 10} fontSize={18} cursor="pointer" onClick={() => move("left")} />
+      <Text text="▶" x={width + 2} y={height/2 - 10} fontSize={18} cursor="pointer" onClick={() => move("right")} />
     </Group>
   );
 };

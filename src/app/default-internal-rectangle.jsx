@@ -11,7 +11,7 @@ const DefaultInternalRectangle = ({
   fill,
   isSelected,
   stageSize,
-  setPosition, // <--- обязательно передаётся сверху
+  setPosition, 
 }) => {
   const [shake, setShake] = useState(false);
 
@@ -20,7 +20,7 @@ const DefaultInternalRectangle = ({
   const innerRectWidth = stageSize.width / 1.5;
   const innerRectHeight = stageSize.height / 1.5;
 
-  const moveStep = 20;
+  const moveStep = 20;                                                  // Ширина шага в пикселях
 
   const move = (direction) => {
     let newX = x;
@@ -37,7 +37,14 @@ const DefaultInternalRectangle = ({
       newX + width > innerRectX + innerRectWidth ||
       newY + height > innerRectY + innerRectHeight;
 
-    if (limit) return triggerShake();
+    // Прижимаем к границам вместо жесткого лимита
+    newX = Math.max(innerRectX, Math.min(newX, innerRectX + innerRectWidth - width));
+    newY = Math.max(innerRectY, Math.min(newY, innerRectY + innerRectHeight - height));
+
+    // Если позиция не изменилась (уже уперлись), то shake
+    if (newX === x && newY === y) {
+      return triggerShake();
+    }
 
     setPosition(id, newX, newY);
   };

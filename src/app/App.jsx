@@ -790,9 +790,33 @@ const App = () => {
       };
 
       if (type === 'internal') {
-        childElements.push(<DefaultInternalRectangle {...commonProps}  />);
+        childElements.push(
+          <DefaultInternalRectangle 
+            {...commonProps} 
+            
+            setPosition={(id, newX, newY) => {
+              setChildPatternPositions(prev => ({
+                ...prev,
+                [componentName]: { x: newX, y: newY }
+              }));
+              // Обновляем patternInfo для consistency
+              patternInfo.x = newX;
+              patternInfo.y = newY;
+            }}
+            
+          />
+        );
       } else {
-        childElements.push(<DefaultExternalRectangle {...commonProps} />);
+        childElements.push(<DefaultExternalRectangle {...commonProps}
+          setPosition={(id, newX, newY) => {
+              setChildPatternPositions(prev => ({
+                ...prev,
+                [componentName]: { x: newX, y: newY }
+              }));
+              // Обновляем patternInfo для consistency
+              patternInfo.x = newX;
+              patternInfo.y = newY;
+            }} />);
       }
     });
 
@@ -838,8 +862,20 @@ const App = () => {
         };
 
         return block.type === 'internal' 
-          ? <DefaultInternalRectangle {...commonProps} />
+          ? <DefaultInternalRectangle 
+              {...commonProps} 
+              setPosition={(id, newX, newY) => {
+                setBlocks(prev => prev.map(b => 
+                  b.id === id ? { ...b, x: newX, y: newY } : b
+                ));
+              }} 
+            />
           : <DefaultExternalRectangle {...commonProps} 
+          setPosition={(id, newX, newY) => {
+                setBlocks(prev => prev.map(b => 
+                  b.id === id ? { ...b, x: newX, y: newY } : b
+                ));
+              }} 
           />;
       })}
 
