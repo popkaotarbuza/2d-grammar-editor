@@ -87,10 +87,10 @@ const App = () => {
 
   /**
    * Сбрасывает позиции дочерних паттернов при смене выбранного паттерна
-   */
+   
   useEffect(() => {
     setChildPatternPositions({});
-  }, [selectedPatternId]);
+  }, [selectedPatternId]);*/
 
   // ==================== Обработчики событий Stage ====================
   
@@ -528,7 +528,9 @@ const App = () => {
   };
 
 
-  
+
+
+
 
   // ==================== Рендер паттернов ====================
   
@@ -772,6 +774,38 @@ const App = () => {
       const { componentName, type, x, y, width, height, fixedSides } = patternInfo;
       const isDraggable = !(fixedSides.left && fixedSides.right && fixedSides.top && fixedSides.bottom);
 
+      const componentData = type === 'internal' ? innerPatterns[componentName] : outerPatterns[componentName];
+
+      // Changed: Added handleSetLocation function to directly update patterns and selectedPattern on location change
+      const handleSetLocation = (newLocation) => {
+        setPatterns(prevPatterns => {
+          const updatedPatterns = { ...prevPatterns };
+          const updatedPattern = { ...updatedPatterns[selectedPatternId] };
+          const section = type === 'internal' ? 'inner' : 'outer';
+          updatedPattern[section] = {
+            ...updatedPattern[section],
+            [componentName]: {
+              ...updatedPattern[section][componentName],
+              location: newLocation
+            }
+          };
+          updatedPatterns[selectedPatternId] = updatedPattern;
+          return updatedPatterns;
+        });
+
+        // Update selectedPattern
+        setSelectedPattern(prev => ({
+          ...prev,
+          [type === 'internal' ? 'inner' : 'outer']: {
+            ...prev[type === 'internal' ? 'inner' : 'outer'],
+            [componentName]: {
+              ...prev[type === 'internal' ? 'inner' : 'outer'][componentName],
+              location: newLocation
+            }
+          }
+        }));
+      };
+
       const commonProps = {
         key: `${type}-${componentName}`,
         id: `${type}-${componentName}`,
@@ -787,13 +821,15 @@ const App = () => {
         onSelect: () => {},
         nodeRef: () => {},
         stageSize,
+        // Changed: Added location and setLocation props to pass to child components
+        location: componentData.location || {},
+        setLocation: handleSetLocation,
       };
 
       if (type === 'internal') {
         childElements.push(
           <DefaultInternalRectangle 
             {...commonProps} 
-            
             setPosition={(id, newX, newY) => {
               setChildPatternPositions(prev => ({
                 ...prev,
@@ -803,12 +839,13 @@ const App = () => {
               patternInfo.x = newX;
               patternInfo.y = newY;
             }}
-            
           />
         );
       } else {
-        childElements.push(<DefaultExternalRectangle {...commonProps}
-          setPosition={(id, newX, newY) => {
+        childElements.push(
+          <DefaultExternalRectangle 
+            {...commonProps} 
+            setPosition={(id, newX, newY) => {
               setChildPatternPositions(prev => ({
                 ...prev,
                 [componentName]: { x: newX, y: newY }
@@ -816,7 +853,9 @@ const App = () => {
               // Обновляем patternInfo для consistency
               patternInfo.x = newX;
               patternInfo.y = newY;
-            }} />);
+            }}
+          />
+        );
       }
     });
 
@@ -859,6 +898,8 @@ const App = () => {
             if (node) rectRefs.current.set(block.id, node);
           },
           stageSize: stageSize,
+          location: {},
+          setLocation: () => {},
         };
 
         return block.type === 'internal' 
