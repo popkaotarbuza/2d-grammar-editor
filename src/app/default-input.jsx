@@ -9,10 +9,9 @@ const DefaultInput = ({ value, onChange, placeholder, width }) => {
             onChange={onChange}
             placeholder={placeholder}
             style={{
-                width: '300px',
+                width: '1300px',
                 height: '40px',
                 fontSize: '16px',
-                padding: '8px',
                 marginBottom: '20px',
             }}
         />
