@@ -366,24 +366,62 @@ const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onS
     }
 
     const patternId = prompt(`Введите ID паттерна для extends (доступные: ${availablePatterns.join(', ')})`);
-    if (patternId && availablePatterns.includes(patternId.trim())) {
-        const trimmedId = patternId.trim();
+    if (!patternId || !patternId.trim()) return;
 
-        setLocalPattern(prev => {
-            const currentExtends = getExtends(); // текущие extends
-            if (currentExtends.includes(trimmedId)) {
-                alert('Этот паттерн уже добавлен в extends');
-                return prev;
-            }
+    const trimmedId = patternId.trim();
 
-            return {
-                ...prev,
-                extends: [...currentExtends, trimmedId]
-            };
-        });
-    } else {
+    if (!availablePatterns.includes(trimmedId)) {
         alert('Паттерн с таким ID не найден');
+        return;
     }
+
+    // Проверка: уже добавлен?
+    const currentExtends = getExtends();
+    if (currentExtends.includes(trimmedId)) {
+        alert('Этот паттерн уже добавлен в extends');
+        return;
+    }
+
+    // === ПРОВЕРКА НА ЦИКЛ ===
+    // Строим граф: кто на кого ссылается
+    const graph = {};
+    Object.keys(allPatterns).forEach(id => {
+        const ext = allPatterns[id].extends || [];
+        graph[id] = ext.filter(e => typeof e === 'string');
+    });
+
+    // Добавляем текущую попытку: selectedPatternId → trimmedId
+    const tempGraph = { ...graph, ...{[selectedPatternId]: [...graph[selectedPatternId] || [], trimmedId]}};
+
+    // Проверяем, есть ли путь от trimmedId обратно к selectedPatternId
+    const hasCycle = (start, target) => {
+        const visited = new Set();
+        const stack = [start];
+
+        while (stack.length > 0) {
+            const current = stack.pop();
+            if (current === target) return true;
+            if (visited.has(current)) continue;
+            visited.add(current);
+
+            const children = tempGraph[current] || [];
+            for (const child of children) {
+                stack.push(child);
+            }
+        }
+        return false;
+    };
+
+    if (hasCycle(trimmedId, selectedPatternId)) {
+        alert('Ошибка: создание циклической зависимости запрещено!');
+        return;
+    }
+
+    // Если всё ок — добавляем
+    setLocalPattern(prev => ({
+        ...prev,
+        extends: [...currentExtends, trimmedId]
+    }));
 };
 
     const deleteExtend = (index) => {
