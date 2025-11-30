@@ -68,6 +68,7 @@ const App = () => {
   const [selectedPattern, setSelectedPattern] = useState(null);
   const [blocks, setBlocks] = useState([]); // Блоки паттернов на холсте
   const [selectedIds, setSelectedIds] = useState([]);
+  const rightSidebarRef = useRef(null); // для кнопок добавления внутренних/внешних паттернов
   
   // Состояние для прямоугольника выделения (множественный выбор)
   const [selectionRectangle, setSelectionRectangle] = useState({
@@ -785,6 +786,7 @@ const App = () => {
       height: '100vh', 
       backgroundColor: COLORS.BACKGROUND 
     }}>
+
       <Header
         onOpen={handleOpen}
         onSave={handleSave}
@@ -828,7 +830,7 @@ const App = () => {
           {/* Кнопки создания паттернов */}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
             <button
-              onClick={createExternalPattern}
+              onClick={() => rightSidebarRef.current?.addInternalPattern()}
               style={{
                 backgroundColor: '#4CAF50',
                 color: '#fff',
@@ -844,7 +846,7 @@ const App = () => {
               Добавить внешний паттерн
             </button>
             <button
-              onClick={createInternalPattern}
+              onClick={() => rightSidebarRef.current?.addExternalPattern()}
               style={{
                 backgroundColor: '#2196F3',
                 color: '#fff',
@@ -885,13 +887,12 @@ const App = () => {
         {/* Правый sidebar */}
         <div style={containerStyles.sidebarWrapper}>
           <RightSidebar
-            selectedPattern={selectedPattern}
-            selectedPatternId={selectedPatternId}
-            onUpdatePattern={handleUpdatePattern}
-            onSavePattern={handleSavePattern}
-            onCancelPattern={handleCancelPattern}
-            allPatterns={patterns}
-          />
+              ref={rightSidebarRef}
+              selectedPattern={selectedPattern}
+              selectedPatternId={selectedPatternId}
+              onSavePattern={handleSavePattern}
+              allPatterns={patterns}
+            /> 
         </div>
       </div>
     </div>
