@@ -290,11 +290,14 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
       // Прижать к правой стороне
       x = parentBounds.x + parentBounds.width - childSize.width - right;
     } else if (hasLeft && hasRight) {
-      // Если заданы обе стороны, но не с нулевыми отступами - центрируем
-      x = parentBounds.x + (parentBounds.width - childSize.width) / 2;
+      // Если заданы обе стороны с ненулевыми отступами - используем left
+      x = parentBounds.x + left;
     } else if (hasRight) {
       // Если задан только right с ненулевым отступом
       x = parentBounds.x + parentBounds.width - childSize.width - right;
+    } else if (hasLeft) {
+      // Если задан только left с ненулевым отступом
+      x = parentBounds.x + left;
     }
 
     // Растягивание по вертикали
@@ -309,11 +312,14 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
       // Прижать к нижней стороне
       y = parentBounds.y + parentBounds.height - childSize.height - bottom;
     } else if (hasTop && hasBottom) {
-      // Если заданы обе стороны, но не с нулевыми отступами - центрируем
-      y = parentBounds.y + (parentBounds.height - childSize.height) / 2;
+      // Если заданы обе стороны с ненулевыми отступами - используем top
+      y = parentBounds.y + top;
     } else if (hasBottom) {
       // Если задан только bottom с ненулевым отступом
       y = parentBounds.y + parentBounds.height - childSize.height - bottom;
+    } else if (hasTop) {
+      // Если задан только top с ненулевым отступом
+      y = parentBounds.y + top;
     }
 
     return { x, y, width, height };
@@ -419,3 +425,184 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
   }
 };
 
+
+/**
+ * Распределяет паттерны вдоль границы, чтобы они не накладывались друг на друга
+ * Учитывает location каждого паттерна для определения стороны привязки
+ * 
+ * @param {Array} patternInfos - Массив информации о паттернах с location
+ * @param {Object} parentBounds - Границы родительского контейнера
+ * @returns {Array} Обновленный массив с новыми позициями
+ */
+export const distributePatterns = (patternInfos, parentBounds) => {
+  if (!patternInfos || patternInfos.length === 0) return patternInfos;
+
+  // Группируем паттерны по сторонам на основе их location
+  const groups = {
+    left: [],
+    right: [],
+    top: [],
+    bottom: [],
+    none: []
+  };
+
+  patternInfos.forEach((pattern, index) => {
+    const { location, type } = pattern;
+    
+    if (!location) {
+      groups.none.push({ ...pattern, originalIndex: index });
+      return;
+    }
+
+    // Нормализуем location
+    const normalizedLocation = {};
+    ['top', 'right', 'bottom', 'left'].forEach(side => {
+      if (location[side] !== undefined) {
+        normalizedLocation[side] = location[side];
+      }
+      if (location[`margin-${side}`] !== undefined) {
+        normalizedLocation[side] = location[`margin-${side}`];
+      }
+      if (location[`padding-${side}`] !== undefined) {
+        normalizedLocation[side] = location[`padding-${side}`];
+      }
+    });
+
+    // Парсим значения location
+    const leftOffset = parseLocationValue(normalizedLocation.left);
+    const rightOffset = parseLocationValue(normalizedLocation.right);
+    const topOffset = parseLocationValue(normalizedLocation.top);
+    const bottomOffset = parseLocationValue(normalizedLocation.bottom);
+
+    // Определяем приоритетную сторону для внешних паттернов
+    if (type === 'external') {
+      if (normalizedLocation.left !== undefined) {
+        groups.left.push({ ...pattern, originalIndex: index });
+      } else if (normalizedLocation.right !== undefined) {
+        groups.right.push({ ...pattern, originalIndex: index });
+      } else if (normalizedLocation.top !== undefined) {
+        groups.top.push({ ...pattern, originalIndex: index });
+      } else if (normalizedLocation.bottom !== undefined) {
+        groups.bottom.push({ ...pattern, originalIndex: index });
+      } else {
+        groups.none.push({ ...pattern, originalIndex: index });
+      }
+    } else {
+      // Для внутренних паттернов определяем сторону по отступам
+      const hasLeft = normalizedLocation.left !== undefined;
+      const hasRight = normalizedLocation.right !== undefined;
+      const hasTop = normalizedLocation.top !== undefined;
+      const hasBottom = normalizedLocation.bottom !== undefined;
+      
+      const leftIsZero = hasLeft && leftOffset.min === 0;
+      const rightIsZero = hasRight && rightOffset.min === 0;
+      const topIsZero = hasTop && topOffset.min === 0;
+      const bottomIsZero = hasBottom && bottomOffset.min === 0;
+
+      // Если паттерн растянут между двумя сторонами, не распределяем его
+      if ((leftIsZero && rightIsZero) || (topIsZero && bottomIsZero)) {
+        groups.none.push({ ...pattern, originalIndex: index });
+      }
+      // Если паттерн в углу (две смежные стороны с нулевым отступом), не распределяем его
+      else if ((leftIsZero && topIsZero) || (leftIsZero && bottomIsZero) || 
+               (rightIsZero && topIsZero) || (rightIsZero && bottomIsZero)) {
+        groups.none.push({ ...pattern, originalIndex: index });
+      }
+      // Определяем основную сторону привязки (приоритет у нулевых отступов)
+      else if (leftIsZero) {
+        groups.left.push({ ...pattern, originalIndex: index });
+      } else if (rightIsZero) {
+        groups.right.push({ ...pattern, originalIndex: index });
+      } else if (topIsZero) {
+        groups.top.push({ ...pattern, originalIndex: index });
+      } else if (bottomIsZero) {
+        groups.bottom.push({ ...pattern, originalIndex: index });
+      }
+      // Если нет нулевых отступов, но есть ненулевые - группируем по ним
+      else if (hasLeft) {
+        groups.left.push({ ...pattern, originalIndex: index });
+      } else if (hasRight) {
+        groups.right.push({ ...pattern, originalIndex: index });
+      } else if (hasTop) {
+        groups.top.push({ ...pattern, originalIndex: index });
+      } else if (hasBottom) {
+        groups.bottom.push({ ...pattern, originalIndex: index });
+      } else {
+        groups.none.push({ ...pattern, originalIndex: index });
+      }
+    }
+  });
+
+  const result = [...patternInfos];
+  const MIN_SPACING = 10; // Минимальный отступ между паттернами
+
+  // Распределяем паттерны вдоль левой границы (вертикально)
+  if (groups.left.length > 1) {
+    const totalHeight = groups.left.reduce((sum, p) => sum + p.height, 0);
+    const availableHeight = parentBounds.height;
+    const spacing = Math.max(MIN_SPACING, (availableHeight - totalHeight) / (groups.left.length + 1));
+    
+    let currentY = parentBounds.y + spacing;
+
+    groups.left.forEach((pattern) => {
+      result[pattern.originalIndex] = {
+        ...result[pattern.originalIndex],
+        y: currentY
+      };
+      currentY += pattern.height + spacing;
+    });
+  }
+
+  // Распределяем паттерны вдоль правой границы (вертикально)
+  if (groups.right.length > 1) {
+    const totalHeight = groups.right.reduce((sum, p) => sum + p.height, 0);
+    const availableHeight = parentBounds.height;
+    const spacing = Math.max(MIN_SPACING, (availableHeight - totalHeight) / (groups.right.length + 1));
+    
+    let currentY = parentBounds.y + spacing;
+
+    groups.right.forEach((pattern) => {
+      result[pattern.originalIndex] = {
+        ...result[pattern.originalIndex],
+        y: currentY
+      };
+      currentY += pattern.height + spacing;
+    });
+  }
+
+  // Распределяем паттерны вдоль верхней границы (горизонтально)
+  if (groups.top.length > 1) {
+    const totalWidth = groups.top.reduce((sum, p) => sum + p.width, 0);
+    const availableWidth = parentBounds.width;
+    const spacing = Math.max(MIN_SPACING, (availableWidth - totalWidth) / (groups.top.length + 1));
+    
+    let currentX = parentBounds.x + spacing;
+
+    groups.top.forEach((pattern) => {
+      result[pattern.originalIndex] = {
+        ...result[pattern.originalIndex],
+        x: currentX
+      };
+      currentX += pattern.width + spacing;
+    });
+  }
+
+  // Распределяем паттерны вдоль нижней границы (горизонтально)
+  if (groups.bottom.length > 1) {
+    const totalWidth = groups.bottom.reduce((sum, p) => sum + p.width, 0);
+    const availableWidth = parentBounds.width;
+    const spacing = Math.max(MIN_SPACING, (availableWidth - totalWidth) / (groups.bottom.length + 1));
+    
+    let currentX = parentBounds.x + spacing;
+
+    groups.bottom.forEach((pattern) => {
+      result[pattern.originalIndex] = {
+        ...result[pattern.originalIndex],
+        x: currentX
+      };
+      currentX += pattern.width + spacing;
+    });
+  }
+
+  return result;
+};

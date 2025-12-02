@@ -8,7 +8,7 @@ const DefaultExternalRectangle = ({
   width = 100,
   height = 70,
   text = 'Внешний паттерн',
-  fill = '#D9D9D9',
+  fill = '#E3E3E3',
   isSelected = false,
   draggable = true,
   dragBoundFunc,
@@ -112,10 +112,7 @@ const DefaultExternalRectangle = ({
       name="rect"
       onClick={onSelect}
       onTap={onSelect}
-      draggable={draggable}
-      dragBoundFunc={finalDragBoundFunc}
-      onDragMove={onDragMove}
-      onDragEnd={onDragEnd}
+      draggable={false}
     >
       <Rect
         width={width}

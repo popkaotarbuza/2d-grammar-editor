@@ -14,13 +14,14 @@ import Konva from "konva";
 import { useState, useEffect, useRef } from "react";
 import { DefaultExternalRectangle } from './default-rectangle.jsx';
 import { DefaultInternalRectangle } from './default-internal-rectangle.jsx';
+import { LocationArrows } from './LocationArrows.jsx';
 import { getClientRect } from "./getClientRect.js";
 import { Header } from './Header.jsx';
 import { LeftSidebar } from './LeftSidebar.jsx';
 import { RightSidebar } from './RightSidebar.jsx';
 import { SIZES, COLORS, DEFAULT_PATTERN } from './constants.js';
 import { containerStyles } from './styles.js';
-import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition, checkCollision, getFixedSides } from './utils.js';
+import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition, distributePatterns } from './utils.js';
 import './mainWindow.css';
 
 const App = () => {
@@ -64,12 +65,16 @@ const App = () => {
     x1: 0, y1: 0, x2: 0, y2: 0,
   });
 
-  // Состояние для позиций дочерних паттернов (для физики и перетаскивания)
-  const [childPatternPositions, setChildPatternPositions] = useState({});
+  // Состояние для выбранного дочернего паттерна (для отображения стрелок location)
+  const [selectedChildPattern, setSelectedChildPattern] = useState(null);
+
+  // Состояние для редактора location
+  const [locationEditor, setLocationEditor] = useState(null);
 
   // Refs
   const isSelecting = useRef(false); // Флаг начала выделения
   const rectRefs = useRef(new Map()); // Map для быстрого доступа к узлам по ID
+  const stageRef = useRef(null); // Ref для Stage
 
   // ==================== Эффекты ====================
   
@@ -86,11 +91,27 @@ const App = () => {
   }, []);
 
   /**
-   * Сбрасывает позиции дочерних паттернов при смене выбранного паттерна
+   * Сбрасывает выбор дочернего паттерна при смене родительского паттерна
    */
   useEffect(() => {
-    setChildPatternPositions({});
+    setSelectedChildPattern(null);
   }, [selectedPatternId]);
+
+  /**
+   * Отслеживает состояние редактора location из window
+   */
+  useEffect(() => {
+    const checkEditorState = () => {
+      if (window.__locationEditorState) {
+        setLocationEditor(window.__locationEditorState);
+      } else {
+        setLocationEditor(null);
+      }
+    };
+
+    const interval = setInterval(checkEditorState, 50);
+    return () => clearInterval(interval);
+  }, []);
 
   // ==================== Обработчики событий Stage ====================
   
@@ -102,10 +123,9 @@ const App = () => {
    */
   const handleStageClick = (e) => {
     if (e.target === e.target.getStage()) {
-      setSelectedIds([]);
-      setSelectedPatternId(null);
-      setSelectedComponentId(null);
-      setSelectedPattern(null);
+      // При клике на пустое поле сбрасываем только выбор дочернего паттерна
+      // Родительский паттерн остается выбранным
+      setSelectedChildPattern(null);
       return;
     }
 
@@ -569,21 +589,14 @@ const App = () => {
         true // isInner
       );
 
-      const savedPosition = childPatternPositions[componentName];
-      const finalX = savedPosition?.x ?? positionAndSize.x;
-      const finalY = savedPosition?.y ?? positionAndSize.y;
-
-      const fixedSides = getFixedSides(componentData.location);
-
       patternInfos.push({
         componentName,
         type: 'internal',
-        x: finalX,
-        y: finalY,
+        x: positionAndSize.x,
+        y: positionAndSize.y,
         width: positionAndSize.width,
         height: positionAndSize.height,
-        fixedSides,
-        initialBounds: positionAndSize,
+        location: componentData.location,
       });
     });
 
@@ -607,165 +620,31 @@ const App = () => {
         false // isInner
       );
 
-      const savedPosition = childPatternPositions[componentName];
-      const finalX = savedPosition?.x ?? positionAndSize.x;
-      const finalY = savedPosition?.y ?? positionAndSize.y;
-
-      const fixedSides = getFixedSides(componentData.location);
-
       patternInfos.push({
         componentName,
         type: 'external',
-        x: finalX,
-        y: finalY,
+        x: positionAndSize.x,
+        y: positionAndSize.y,
         width: positionAndSize.width,
         height: positionAndSize.height,
-        fixedSides,
-        initialBounds: positionAndSize,
+        location: componentData.location,
       });
     });
 
-    /**
-     * Создает функцию dragBoundFunc для паттерна с проверкой столкновений
-     */
-    const createDragBoundFunc = (currentPatternInfo) => {
-      return (pos) => {
-        const { componentName, type, width, height, fixedSides, initialBounds } = currentPatternInfo;
-        
-        let newX = pos.x;
-        let newY = pos.y;
-        const oldX = currentPatternInfo.x;
-        const oldY = currentPatternInfo.y;
-
-        // Ограничиваем движение по зафиксированным сторонам
-        if (fixedSides.left && fixedSides.right) {
-          newX = initialBounds.x;
-        } else if (fixedSides.left) {
-          newX = initialBounds.x;
-        } else if (fixedSides.right) {
-          newX = initialBounds.x;
-        }
-
-        if (fixedSides.top && fixedSides.bottom) {
-          newY = initialBounds.y;
-        } else if (fixedSides.top) {
-          newY = initialBounds.y;
-        } else if (fixedSides.bottom) {
-          newY = initialBounds.y;
-        }
-
-        // Ограничиваем границами
-        if (type === 'internal') {
-          // Для внутренних паттернов - ограничиваем внутри parentBounds
-          newX = Math.max(parentBounds.x, Math.min(newX, parentBounds.x + parentBounds.width - width));
-          newY = Math.max(parentBounds.y, Math.min(newY, parentBounds.y + parentBounds.height - height));
-        } else {
-          // Для внешних паттернов - ограничиваем в зависимости от прикрепленной стороны
-          
-          // Определяем, к какой стороне прикреплен паттерн
-          const isAttachedLeft = fixedSides.left;
-          const isAttachedRight = fixedSides.right;
-          const isAttachedTop = fixedSides.top;
-          const isAttachedBottom = fixedSides.bottom;
-
-          if (isAttachedLeft) {
-            // Прикреплен к левой стороне - может двигаться только вдоль левой границы
-            newX = initialBounds.x; // Фиксируем X
-            // Y ограничиваем высотой родительского контейнера
-            newY = Math.max(parentBounds.y, Math.min(newY, parentBounds.y + parentBounds.height - height));
-          } else if (isAttachedRight) {
-            // Прикреплен к правой стороне - может двигаться только вдоль правой границы
-            newX = initialBounds.x; // Фиксируем X
-            // Y ограничиваем высотой родительского контейнера
-            newY = Math.max(parentBounds.y, Math.min(newY, parentBounds.y + parentBounds.height - height));
-          } else if (isAttachedTop) {
-            // Прикреплен к верхней стороне - может двигаться только вдоль верхней границы
-            newY = initialBounds.y; // Фиксируем Y
-            // X ограничиваем шириной родительского контейнера
-            newX = Math.max(parentBounds.x, Math.min(newX, parentBounds.x + parentBounds.width - width));
-          } else if (isAttachedBottom) {
-            // Прикреплен к нижней стороне - может двигаться только вдоль нижней границы
-            newY = initialBounds.y; // Фиксируем Y
-            // X ограничиваем шириной родительского контейнера
-            newX = Math.max(parentBounds.x, Math.min(newX, parentBounds.x + parentBounds.width - width));
-          } else {
-            // Не прикреплен ни к одной стороне - ограничиваем границами Stage
-            newX = Math.max(0, Math.min(newX, stageSize.width - width));
-            newY = Math.max(0, Math.min(newY, stageSize.height - height));
-          }
-        }
-
-        // Проверяем столкновения с другими паттернами
-        for (const otherPattern of patternInfos) {
-          if (otherPattern.componentName === componentName) continue;
-          
-          const otherRect = {
-            x: otherPattern.x,
-            y: otherPattern.y,
-            width: otherPattern.width,
-            height: otherPattern.height
-          };
-
-          // Проверяем столкновение с новой позицией
-          const testRect = { x: newX, y: newY, width, height };
-          
-          if (checkCollision(testRect, otherRect)) {
-            // Есть столкновение - пытаемся двигаться только по одной оси
-            
-            // Пробуем двигаться только по X (сохраняя старый Y)
-            const testRectX = { x: newX, y: oldY, width, height };
-            const canMoveX = !checkCollision(testRectX, otherRect);
-            
-            // Пробуем двигаться только по Y (сохраняя старый X)
-            const testRectY = { x: oldX, y: newY, width, height };
-            const canMoveY = !checkCollision(testRectY, otherRect);
-            
-            if (canMoveX && !canMoveY) {
-              // Можем двигаться только по X
-              newY = oldY;
-            } else if (canMoveY && !canMoveX) {
-              // Можем двигаться только по Y
-              newX = oldX;
-            } else {
-              // Не можем двигаться ни по одной оси - останавливаемся
-              newX = oldX;
-              newY = oldY;
-            }
-          }
-        }
-
-        return { x: newX, y: newY };
-      };
-    };
-
-    /**
-     * Обработчик завершения перетаскивания
-     */
-    const handleChildDragEnd = (e, componentName) => {
-      const node = e.target;
-      const newX = node.x();
-      const newY = node.y();
-      
-      // Обновляем позицию в состоянии
-      setChildPatternPositions(prev => ({
-        ...prev,
-        [componentName]: { x: newX, y: newY }
-      }));
-
-      // Обновляем позицию в patternInfos для последующих проверок
-      const patternInfo = patternInfos.find(p => p.componentName === componentName);
-      if (patternInfo) {
-        patternInfo.x = newX;
-        patternInfo.y = newY;
-      }
-    };
+    // Распределяем паттерны, чтобы они не накладывались друг на друга
+    const distributedPatterns = distributePatterns(patternInfos, parentBounds);
 
     const childElements = [];
 
     // Рендерим все паттерны
-    patternInfos.forEach((patternInfo) => {
-      const { componentName, type, x, y, width, height, fixedSides } = patternInfo;
-      const isDraggable = !(fixedSides.left && fixedSides.right && fixedSides.top && fixedSides.bottom);
+    distributedPatterns.forEach((patternInfo) => {
+      const { componentName, type, x, y, width, height } = patternInfo;
+      const isChildSelected = selectedChildPattern?.componentName === componentName;
+
+      // Получаем location для текущего паттерна
+      const patternLocation = type === 'internal' 
+        ? innerPatterns[componentName]?.location 
+        : outerPatterns[componentName]?.location;
 
       const commonProps = {
         key: `${type}-${componentName}`,
@@ -775,11 +654,16 @@ const App = () => {
         width,
         height,
         text: componentName,
-        isSelected: false,
-        draggable: isDraggable,
-        dragBoundFunc: createDragBoundFunc(patternInfo),
-        onDragEnd: (e) => handleChildDragEnd(e, componentName),
-        onSelect: () => {},
+        isSelected: isChildSelected,
+        draggable: false,
+        onSelect: () => {
+          setSelectedChildPattern({
+            componentName,
+            type,
+            bounds: { x, y, width, height },
+            location: patternLocation
+          });
+        },
         nodeRef: () => {},
         stageSize,
       };
@@ -789,9 +673,107 @@ const App = () => {
       } else {
         childElements.push(<DefaultExternalRectangle {...commonProps} />);
       }
+
+
     });
 
     return childElements;
+  };
+
+  /**
+   * Обработчик изменения location
+   */
+  const handleLocationChange = (newLocation) => {
+    if (!selectedChildPattern || !selectedPattern) return;
+
+    const { componentName, type } = selectedChildPattern;
+    
+    // Обновляем location в selectedPattern
+    const updatedPattern = { ...selectedPattern };
+    const targetContainer = type === 'internal' ? 'inner' : 'outer';
+    
+    if (updatedPattern[targetContainer] && updatedPattern[targetContainer][componentName]) {
+      updatedPattern[targetContainer] = {
+        ...updatedPattern[targetContainer],
+        [componentName]: {
+          ...updatedPattern[targetContainer][componentName],
+          location: newLocation
+        }
+      };
+      
+      // Сразу обновляем selectedPattern для немедленного отображения
+      setSelectedPattern({
+        ...updatedPattern,
+        id: selectedPatternId,
+      });
+      
+      // Сохраняем изменения в patterns
+      setPatterns(prev => ({
+        ...prev,
+        [selectedPatternId]: updatedPattern
+      }));
+      
+      // Пересчитываем позицию паттерна с новым location
+      const innerRect = getInnerRectBounds(stageSize);
+      const parentBounds = {
+        x: innerRect.x,
+        y: innerRect.y,
+        width: innerRect.width,
+        height: innerRect.height
+      };
+      
+      const childSize = type === 'internal' 
+        ? { width: DEFAULT_PATTERN.INTERNAL.width, height: DEFAULT_PATTERN.INTERNAL.height }
+        : { width: DEFAULT_PATTERN.EXTERNAL.width, height: DEFAULT_PATTERN.EXTERNAL.height };
+      
+      const newPositionAndSize = calculateChildPosition(
+        newLocation,
+        parentBounds,
+        childSize,
+        type === 'internal'
+      );
+      
+      // Обновляем selectedChildPattern с новыми координатами
+      setSelectedChildPattern({
+        componentName,
+        type,
+        bounds: {
+          x: newPositionAndSize.x,
+          y: newPositionAndSize.y,
+          width: newPositionAndSize.width,
+          height: newPositionAndSize.height
+        },
+        location: newLocation
+      });
+    }
+  };
+
+  /**
+   * Рендерит стрелки location (отдельный слой под паттернами)
+   */
+  const renderLocationArrows = () => {
+    if (!selectedChildPattern) return null;
+
+    const innerRect = getInnerRectBounds(stageSize);
+    const parentBounds = {
+      x: innerRect.x,
+      y: innerRect.y,
+      width: innerRect.width,
+      height: innerRect.height
+    };
+
+    return (
+      <Layer listening={true}>
+        <LocationArrows
+          patternBounds={selectedChildPattern.bounds}
+          parentBounds={parentBounds}
+          location={selectedChildPattern.location || {}}
+          isInner={selectedChildPattern.type === 'internal'}
+          onLocationChange={handleLocationChange}
+          stageRef={stageRef}
+        />
+      </Layer>
+    );
   };
 
   /**
@@ -942,6 +924,7 @@ const App = () => {
           {/* Контейнер Stage */}
           <div style={containerStyles.stageContainer}>
             <Stage
+              ref={stageRef}
               width={stageSize.width}
               height={stageSize.height}
               onMouseDown={handleMouseDown}
@@ -955,6 +938,7 @@ const App = () => {
             >
               {renderGrid()}
               {renderInnerRect()}
+              {renderLocationArrows()}
               {renderBlocks()}
             </Stage>
           </div>
@@ -972,6 +956,46 @@ const App = () => {
           />
         </div>
       </div>
+
+      {/* HTML input для редактирования location */}
+      {locationEditor && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${locationEditor.position.x}px`,
+            top: `${locationEditor.position.y}px`,
+            transform: 'translate(-50%, -50%)',
+            zIndex: 10000,
+          }}
+        >
+          <input
+            ref={locationEditor.inputRef}
+            type="text"
+            value={locationEditor.value}
+            onChange={(e) => locationEditor.onChange(e.target.value)}
+            onKeyDown={locationEditor.onKeyDown}
+            onBlur={() => {
+              locationEditor.onSave();
+              window.__locationEditorState = null;
+            }}
+            autoFocus
+            style={{
+              width: '80px',
+              padding: '6px 10px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              fontFamily: 'Inter, sans-serif',
+              color: '#D72B00',
+              backgroundColor: '#FFFFFF',
+              border: '2px solid #D72B00',
+              borderRadius: '4px',
+              outline: 'none',
+              textAlign: 'center',
+              boxShadow: '0 4px 12px rgba(215, 43, 0, 0.3)',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };

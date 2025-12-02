@@ -39,17 +39,18 @@ const LeftSidebar = ({ patterns, selectedPatternId, selectedComponentId, onSelec
                     backgroundColor: COLORS.PRIMARY,
                     color: '#fff',
                     border: 'none',
-                    fontSize: '20px',
-                    fontWeight: 'bold',
+                    fontSize: '24px',
+                    fontWeight: 'normal',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     padding: '0',
-                    lineHeight: '1',
+                    lineHeight: '0',
                     zIndex: 10,
                     boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                     transition: 'all 0.2s ease',
+                    fontFamily: 'Arial, sans-serif',
                 }}
                 onMouseEnter={(e) => {
                     e.target.style.backgroundColor = '#b52300';
@@ -60,7 +61,10 @@ const LeftSidebar = ({ patterns, selectedPatternId, selectedComponentId, onSelec
                     e.target.style.transform = 'scale(1)';
                 }}
             >
-                +
+                <span style={{
+                    display: 'block',
+                    transform: 'translateY(-1px)',
+                }}>+</span>
             </button>
 
             {/* Контейнер с паттернами и скроллом */}
