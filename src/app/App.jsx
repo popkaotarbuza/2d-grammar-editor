@@ -21,7 +21,7 @@ import { LeftSidebar } from './LeftSidebar.jsx';
 import { RightSidebar } from './RightSidebar.jsx';
 import { SIZES, COLORS, DEFAULT_PATTERN } from './constants.js';
 import { containerStyles } from './styles.js';
-import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition, distributePatterns } from './utils.js';
+import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition, distributePatterns, findMaxLocationValues, calculateScaledGridSize, calculateDragBounds } from './utils.js';
 import './mainWindow.css';
 
 const App = () => {
@@ -566,6 +566,10 @@ const App = () => {
       height: innerRect.height
     };
 
+    // Вычисляем масштабированный размер клетки на основе максимальных значений location
+    const maxValues = findMaxLocationValues(patterns, selectedPatternId);
+    const scaledGridSize = calculateScaledGridSize(parentBounds, maxValues);
+
     // Сначала собираем информацию о всех паттернах
     const patternInfos = [];
 
@@ -586,7 +590,8 @@ const App = () => {
         componentData.location,
         parentBounds,
         childSize,
-        true // isInner
+        true, // isInner
+        scaledGridSize // масштабированный размер клетки
       );
 
       patternInfos.push({
@@ -617,7 +622,8 @@ const App = () => {
         componentData.location,
         parentBounds,
         childSize,
-        false // isInner
+        false, // isInner
+        scaledGridSize // масштабированный размер клетки
       );
 
       patternInfos.push({
@@ -631,13 +637,19 @@ const App = () => {
       });
     });
 
-    // Распределяем паттерны, чтобы они не накладывались друг на друга
-    const distributedPatterns = distributePatterns(patternInfos, parentBounds);
+    // Сортируем паттерны: выбранный паттерн рендерим последним (он будет поверх)
+    const sortedPatternInfos = [...patternInfos].sort((a, b) => {
+      const aSelected = selectedChildPattern?.componentName === a.componentName;
+      const bSelected = selectedChildPattern?.componentName === b.componentName;
+      if (aSelected) return 1; // Выбранный в конец (поверх всех)
+      if (bSelected) return -1;
+      return 0;
+    });
 
     const childElements = [];
 
     // Рендерим все паттерны
-    distributedPatterns.forEach((patternInfo) => {
+    sortedPatternInfos.forEach((patternInfo) => {
       const { componentName, type, x, y, width, height } = patternInfo;
       const isChildSelected = selectedChildPattern?.componentName === componentName;
 
@@ -645,6 +657,15 @@ const App = () => {
       const patternLocation = type === 'internal' 
         ? innerPatterns[componentName]?.location 
         : outerPatterns[componentName]?.location;
+
+      // Вычисляем допустимые границы перемещения
+      const dragBounds = calculateDragBounds(
+        patternLocation,
+        parentBounds,
+        { width, height },
+        scaledGridSize,
+        type === 'internal'
+      );
 
       const commonProps = {
         key: `${type}-${componentName}`,
@@ -655,17 +676,70 @@ const App = () => {
         height,
         text: componentName,
         isSelected: isChildSelected,
-        draggable: false,
-        onSelect: () => {
-          setSelectedChildPattern({
-            componentName,
-            type,
-            bounds: { x, y, width, height },
-            location: patternLocation
-          });
+        draggable: true, // Включаем drag and drop
+        dragBoundFunc: (pos) => {
+          // Ограничиваем перемещение допустимыми границами
+          return {
+            x: Math.max(dragBounds.minX, Math.min(pos.x, dragBounds.maxX)),
+            y: Math.max(dragBounds.minY, Math.min(pos.y, dragBounds.maxY))
+          };
+        },
+        onDragMove: (e) => {
+          // Обновляем bounds при перетаскивании для обновления стрелок
+          if (isChildSelected) {
+            const node = e.target;
+            const rect = node.getClientRect();
+            setSelectedChildPattern(prev => ({
+              ...prev,
+              bounds: {
+                x: rect.x,
+                y: rect.y,
+                width: rect.width,
+                height: rect.height
+              }
+            }));
+          }
+        },
+        onDragEnd: (e) => {
+          // Сохраняем финальную позицию после перетаскивания
+          if (isChildSelected) {
+            const node = e.target;
+            const rect = node.getClientRect();
+            setSelectedChildPattern(prev => ({
+              ...prev,
+              bounds: {
+                x: rect.x,
+                y: rect.y,
+                width: rect.width,
+                height: rect.height
+              }
+            }));
+          }
+        },
+        onSelect: (e) => {
+          // Получаем реальную позицию паттерна из узла Konva
+          const node = e?.target;
+          if (node) {
+            const rect = node.getClientRect();
+            setSelectedChildPattern({
+              componentName,
+              type,
+              bounds: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+              location: patternLocation
+            });
+          } else {
+            // Fallback на начальные координаты
+            setSelectedChildPattern({
+              componentName,
+              type,
+              bounds: { x, y, width, height },
+              location: patternLocation
+            });
+          }
         },
         nodeRef: () => {},
         stageSize,
+        zIndex: isChildSelected ? 1000 : 1, // Выбранный паттерн поверх других
       };
 
       if (type === 'internal') {
@@ -763,7 +837,7 @@ const App = () => {
     };
 
     return (
-      <Layer listening={true}>
+      <Layer listening={true} name="arrows-layer">
         <LocationArrows
           patternBounds={selectedChildPattern.bounds}
           parentBounds={parentBounds}
@@ -938,8 +1012,8 @@ const App = () => {
             >
               {renderGrid()}
               {renderInnerRect()}
-              {renderLocationArrows()}
               {renderBlocks()}
+              {renderLocationArrows()}
             </Stage>
           </div>
         </div>

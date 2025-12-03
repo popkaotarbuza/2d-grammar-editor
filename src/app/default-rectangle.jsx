@@ -112,7 +112,10 @@ const DefaultExternalRectangle = ({
       name="rect"
       onClick={onSelect}
       onTap={onSelect}
-      draggable={false}
+      draggable={draggable}
+      dragBoundFunc={finalDragBoundFunc}
+      onDragEnd={onDragEnd}
+      onDragMove={onDragMove}
     >
       <Rect
         width={width}

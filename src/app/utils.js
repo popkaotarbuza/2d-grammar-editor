@@ -209,15 +209,196 @@ export const parseLocationValue = (locationValue) => {
 };
 
 /**
+ * Находит максимальные значения location среди всех паттернов для масштабирования
+ * Адаптирует размер клетки под конкретный выбранный паттерн
+ * 
+ * @param {Object} patterns - Объект с паттернами
+ * @param {string} patternId - ID текущего паттерна
+ * @returns {Object} {maxTop, maxRight, maxBottom, maxLeft} - Максимальные значения в клетках
+ */
+export const findMaxLocationValues = (patterns, patternId) => {
+  const pattern = patterns[patternId];
+  if (!pattern) return { maxTop: 5, maxRight: 5, maxBottom: 5, maxLeft: 5 };
+
+  let maxTop = 0;
+  let maxRight = 0;
+  let maxBottom = 0;
+  let maxLeft = 0;
+
+  // Функция для обработки location компонента
+  const processLocation = (loc) => {
+    if (!loc) return;
+    
+    ['top', 'right', 'bottom', 'left'].forEach(side => {
+      const value = loc[side] || loc[`margin-${side}`] || loc[`padding-${side}`];
+      if (value) {
+        const parsed = parseLocationValue(value);
+        // Для диапазонов берем максимальное значение
+        // Для "0+" берем min + 10 как разумный максимум
+        const maxVal = parsed.max === Infinity ? parsed.min + 10 : parsed.max;
+        
+        if (side === 'top') maxTop = Math.max(maxTop, maxVal);
+        if (side === 'right') maxRight = Math.max(maxRight, maxVal);
+        if (side === 'bottom') maxBottom = Math.max(maxBottom, maxVal);
+        if (side === 'left') maxLeft = Math.max(maxLeft, maxVal);
+      }
+    });
+  };
+
+  // Проверяем внутренние паттерны
+  if (pattern.inner && typeof pattern.inner === 'object') {
+    Object.values(pattern.inner).forEach(component => {
+      processLocation(component.location);
+    });
+  }
+
+  // Проверяем внешние паттерны
+  if (pattern.outer && typeof pattern.outer === 'object') {
+    Object.values(pattern.outer).forEach(component => {
+      processLocation(component.location);
+    });
+  }
+
+  // Если нет значений, используем минимальные значения по умолчанию
+  return { 
+    maxTop: Math.max(maxTop, 1), 
+    maxRight: Math.max(maxRight, 1), 
+    maxBottom: Math.max(maxBottom, 1), 
+    maxLeft: Math.max(maxLeft, 1) 
+  };
+};
+
+/**
+ * Вычисляет масштабированный размер клетки на основе максимальных значений location
+ * Адаптирует размер клетки так, чтобы все паттерны поместились во внутреннее поле
+ * 
+ * @param {Object} parentBounds - Границы родительского контейнера
+ * @param {Object} maxValues - Максимальные значения location
+ * @returns {Object} {gridSizeX, gridSizeY} - Размеры клетки по X и Y
+ */
+export const calculateScaledGridSize = (parentBounds, maxValues) => {
+  const { maxTop, maxRight, maxBottom, maxLeft } = maxValues;
+  
+  // Учитываем размер паттерна (примерно 100px) при расчете
+  const patternSize = 100;
+  
+  // Доступное пространство для размещения (за вычетом размера паттерна)
+  const availableWidth = parentBounds.width - patternSize;
+  const availableHeight = parentBounds.height - patternSize;
+  
+  // Максимальное количество клеток по каждой оси
+  // Берем максимум из противоположных сторон, так как паттерн может быть
+  // либо слева (left), либо справа (right), но не одновременно на обеих сторонах
+  const maxHorizontalCells = Math.max(maxLeft, maxRight, 1);
+  const maxVerticalCells = Math.max(maxTop, maxBottom, 1);
+  
+  // Вычисляем размер клетки для каждой оси
+  const gridSizeX = availableWidth / maxHorizontalCells;
+  const gridSizeY = availableHeight / maxVerticalCells;
+  
+  // Используем минимальный размер для обеих осей, чтобы сохранить пропорции
+  // Но не меньше минимального размера и не больше максимального
+  const minGridSize = 5; // Минимальный размер клетки
+  const maxGridSize = SIZES.GRID_SIZE * 2; // Максимальный размер клетки
+  
+  const gridSize = Math.max(
+    minGridSize,
+    Math.min(gridSizeX, gridSizeY, maxGridSize)
+  );
+  
+  return { gridSizeX: gridSize, gridSizeY: gridSize };
+};
+
+/**
+ * Вычисляет допустимую область перемещения для паттерна на основе его location
+ * 
+ * @param {Object} location - Объект location
+ * @param {Object} parentBounds - Границы родительского контейнера
+ * @param {Object} childSize - Размеры дочернего паттерна
+ * @param {Object} gridSize - Размеры клетки {gridSizeX, gridSizeY}
+ * @param {boolean} isInner - true если внутренний паттерн
+ * @returns {Object} {minX, maxX, minY, maxY} - Допустимые границы перемещения
+ */
+export const calculateDragBounds = (location, parentBounds, childSize, gridSize, isInner = true) => {
+  if (!location || typeof location !== 'object') {
+    // Если location не задан, можно перемещать по всему контейнеру
+    return {
+      minX: parentBounds.x,
+      maxX: parentBounds.x + parentBounds.width - childSize.width,
+      minY: parentBounds.y,
+      maxY: parentBounds.y + parentBounds.height - childSize.height
+    };
+  }
+
+  const { gridSizeX, gridSizeY } = gridSize;
+
+  // Нормализуем location
+  const normalizedLocation = {};
+  ['top', 'right', 'bottom', 'left'].forEach(side => {
+    if (location[side] !== undefined) {
+      normalizedLocation[side] = location[side];
+    }
+    if (location[`margin-${side}`] !== undefined) {
+      normalizedLocation[side] = location[`margin-${side}`];
+    }
+    if (location[`padding-${side}`] !== undefined) {
+      normalizedLocation[side] = location[`padding-${side}`];
+    }
+  });
+
+  // Парсим значения
+  const topOffset = parseLocationValue(normalizedLocation.top);
+  const rightOffset = parseLocationValue(normalizedLocation.right);
+  const bottomOffset = parseLocationValue(normalizedLocation.bottom);
+  const leftOffset = parseLocationValue(normalizedLocation.left);
+
+  // Вычисляем границы в пикселях
+  const leftMin = leftOffset.min * gridSizeX;
+  const leftMax = (leftOffset.max === Infinity ? leftOffset.min + 10 : leftOffset.max) * gridSizeX;
+  const rightMin = rightOffset.min * gridSizeX;
+  const rightMax = (rightOffset.max === Infinity ? rightOffset.min + 10 : rightOffset.max) * gridSizeX;
+  const topMin = topOffset.min * gridSizeY;
+  const topMax = (topOffset.max === Infinity ? topOffset.min + 10 : topOffset.max) * gridSizeY;
+  const bottomMin = bottomOffset.min * gridSizeY;
+  const bottomMax = (bottomOffset.max === Infinity ? bottomOffset.min + 10 : bottomOffset.max) * gridSizeY;
+
+  let minX = parentBounds.x;
+  let maxX = parentBounds.x + parentBounds.width - childSize.width;
+  let minY = parentBounds.y;
+  let maxY = parentBounds.y + parentBounds.height - childSize.height;
+
+  // Определяем границы на основе заданных сторон
+  if (normalizedLocation.left !== undefined) {
+    minX = parentBounds.x + leftMin;
+    maxX = parentBounds.x + leftMax;
+  }
+  if (normalizedLocation.right !== undefined) {
+    minX = Math.max(minX, parentBounds.x + parentBounds.width - childSize.width - rightMax);
+    maxX = Math.min(maxX, parentBounds.x + parentBounds.width - childSize.width - rightMin);
+  }
+  if (normalizedLocation.top !== undefined) {
+    minY = parentBounds.y + topMin;
+    maxY = parentBounds.y + topMax;
+  }
+  if (normalizedLocation.bottom !== undefined) {
+    minY = Math.max(minY, parentBounds.y + parentBounds.height - childSize.height - bottomMax);
+    maxY = Math.min(maxY, parentBounds.y + parentBounds.height - childSize.height - bottomMin);
+  }
+
+  return { minX, maxX, minY, maxY };
+};
+
+/**
  * Вычисляет позицию и размер дочернего паттерна на основе location относительно родительского паттерна
  * 
  * @param {Object} location - Объект location с полями top, right, bottom, left (и их вариантами с margin/padding)
  * @param {Object} parentBounds - Границы родительского паттерна {x, y, width, height}
  * @param {Object} childSize - Размеры дочернего паттерна {width, height}
  * @param {boolean} isInner - true если это внутренний паттерн, false если внешний
+ * @param {Object} gridSize - Размеры клетки {gridSizeX, gridSizeY} (опционально)
  * @returns {Object} Позиция и размер дочернего паттерна {x, y, width, height}
  */
-export const calculateChildPosition = (location, parentBounds, childSize, isInner = true) => {
+export const calculateChildPosition = (location, parentBounds, childSize, isInner = true, gridSize = null) => {
   if (!location || typeof location !== 'object') {
     // Если location не задан, размещаем по центру
     return {
@@ -228,7 +409,9 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
     };
   }
 
-  const gridSize = SIZES.GRID_SIZE;
+  // Используем переданный gridSize или стандартный
+  const actualGridSizeX = gridSize?.gridSizeX || SIZES.GRID_SIZE;
+  const actualGridSizeY = gridSize?.gridSizeY || SIZES.GRID_SIZE;
   
   // Нормализуем location: обрабатываем margin-top, padding-left и т.д. как обычные top, left
   const normalizedLocation = {};
@@ -255,10 +438,10 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
   if (isInner) {
     // Для внутренних паттернов: отступы от краёв родительского паттерна
     // Используем минимальное значение для позиционирования
-    const left = leftOffset.min * gridSize;
-    const top = topOffset.min * gridSize;
-    const right = rightOffset.min * gridSize;
-    const bottom = bottomOffset.min * gridSize;
+    const left = leftOffset.min * actualGridSizeX;
+    const top = topOffset.min * actualGridSizeY;
+    const right = rightOffset.min * actualGridSizeX;
+    const bottom = bottomOffset.min * actualGridSizeY;
 
     // Начальная позиция и размер
     let x = parentBounds.x + left;
@@ -326,10 +509,10 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
   } else {
     // Для внешних паттернов: отступы от краёв родительского паттерна наружу
     // Используем минимальное значение для позиционирования
-    const left = leftOffset.min * gridSize;
-    const top = topOffset.min * gridSize;
-    const right = rightOffset.min * gridSize;
-    const bottom = bottomOffset.min * gridSize;
+    const left = leftOffset.min * actualGridSizeX;
+    const top = topOffset.min * actualGridSizeY;
+    const right = rightOffset.min * actualGridSizeX;
+    const bottom = bottomOffset.min * actualGridSizeY;
 
     let x, y;
     let width = childSize.width;
