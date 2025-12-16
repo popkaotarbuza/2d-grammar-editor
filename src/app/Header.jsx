@@ -8,6 +8,17 @@ const Header = ({ onOpen, onSave, onSaveAs, fileName, onFileNameChange }) => {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.json,.yaml';
+
+        if (window.Cypress) {
+            input.style.position = 'fixed';
+            input.style.top = '0';
+            input.style.left = '0';
+            input.style.zIndex = '9999';
+            input.style.opacity = '0.01'; // почти невидим, но кликабелен
+            input.setAttribute('data-cy', 'file-input'); // для cy.get()
+            document.body.appendChild(input);
+        }
+
         input.onchange = (e) => {
             const file = e.target.files[0];
             if (file && onOpen) {
@@ -89,6 +100,7 @@ const Header = ({ onOpen, onSave, onSaveAs, fileName, onFileNameChange }) => {
                 boxSizing: 'border-box',
             }}>
                 <button
+                    className={'.open-button'}
                     onClick={handleOpen}
                     style={{
                         backgroundColor: 'transparent',

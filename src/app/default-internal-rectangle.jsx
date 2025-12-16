@@ -8,10 +8,13 @@ const DefaultInternalRectangle = ({
   width = 100,
   height = 70,
   text = 'Внутренний паттерн',
-  fill = '#D9D9D9',
+  fill = '#E3E3E3',
   isSelected = false,
+  draggable = true,
+  dragBoundFunc,
   onSelect,
   onDragEnd,
+  onDragMove,
   nodeRef,
   stageSize,
 }) => {
@@ -21,8 +24,8 @@ const DefaultInternalRectangle = ({
   const innerRectWidth = stageSize.width / 1.5;
   const innerRectHeight = stageSize.height / 1.5;
 
-  // Функция для ограничения движения внутри внутреннего квадрата
-  const dragBoundFunc = (pos) => {
+  // Функция для ограничения движения внутри внутреннего квадрата (по умолчанию)
+  const defaultDragBoundFunc = (pos) => {
     const minX = innerRectX;
     const maxX = innerRectX + innerRectWidth - width;
     const minY = innerRectY;
@@ -34,6 +37,9 @@ const DefaultInternalRectangle = ({
     return { x: newX, y: newY };
   };
 
+  // Используем переданную функцию или дефолтную
+  const finalDragBoundFunc = dragBoundFunc || defaultDragBoundFunc;
+
   return (
     <Group
       id={id}
@@ -43,9 +49,10 @@ const DefaultInternalRectangle = ({
       name="rect"
       onClick={onSelect}
       onTap={onSelect}
-      draggable={true}
-      dragBoundFunc={dragBoundFunc}
+      draggable={draggable}
+      dragBoundFunc={finalDragBoundFunc}
       onDragEnd={onDragEnd}
+      onDragMove={onDragMove}
     >
       <Rect
         width={width}

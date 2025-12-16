@@ -14,14 +14,14 @@ import Konva from "konva";
 import { useState, useEffect, useRef } from "react";
 import { DefaultExternalRectangle } from './default-rectangle.jsx';
 import { DefaultInternalRectangle } from './default-internal-rectangle.jsx';
+import { LocationArrows } from './LocationArrows.jsx';
 import { getClientRect } from "./getClientRect.js";
 import { Header } from './Header.jsx';
 import { LeftSidebar } from './LeftSidebar.jsx';
 import { RightSidebar } from './RightSidebar.jsx';
 import { SIZES, COLORS, DEFAULT_PATTERN } from './constants.js';
 import { containerStyles } from './styles.js';
-import { stringify as yamlStringifyOriginal, YAMLSeq, Scalar } from "yaml";
-import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition } from './utils.js';
+import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition, distributePatterns, findMaxLocationValues, calculateScaledGridSize, calculateDragBounds } from './utils.js';
 import './mainWindow.css';
 
 // локальная обёртка для компактного YAML
@@ -76,9 +76,16 @@ const App = () => {
     x1: 0, y1: 0, x2: 0, y2: 0,
   });
 
+  // Состояние для выбранного дочернего паттерна (для отображения стрелок location)
+  const [selectedChildPattern, setSelectedChildPattern] = useState(null);
+
+  // Состояние для редактора location
+  const [locationEditor, setLocationEditor] = useState(null);
+
   // Refs
   const isSelecting = useRef(false); // Флаг начала выделения
   const rectRefs = useRef(new Map()); // Map для быстрого доступа к узлам по ID
+  const stageRef = useRef(null); // Ref для Stage
 
   // ==================== Эффекты ====================
   
@@ -94,6 +101,29 @@ const App = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  /**
+   * Сбрасывает выбор дочернего паттерна при смене родительского паттерна
+   */
+  useEffect(() => {
+    setSelectedChildPattern(null);
+  }, [selectedPatternId]);
+
+  /**
+   * Отслеживает состояние редактора location из window
+   */
+  useEffect(() => {
+    const checkEditorState = () => {
+      if (window.__locationEditorState) {
+        setLocationEditor(window.__locationEditorState);
+      } else {
+        setLocationEditor(null);
+      }
+    };
+
+    const interval = setInterval(checkEditorState, 50);
+    return () => clearInterval(interval);
+  }, []);
+
   // ==================== Обработчики событий Stage ====================
   
   /**
@@ -104,10 +134,9 @@ const App = () => {
    */
   const handleStageClick = (e) => {
     if (e.target === e.target.getStage()) {
-      setSelectedIds([]);
-      setSelectedPatternId(null);
-      setSelectedComponentId(null);
-      setSelectedPattern(null);
+      // При клике на пустое поле сбрасываем только выбор дочернего паттерна
+      // Родительский паттерн остается выбранным
+      setSelectedChildPattern(null);
       return;
     }
 
@@ -630,16 +659,23 @@ const App = () => {
     const innerPatterns = parentPattern.inner || {};
     const outerPatterns = parentPattern.outer || {};
 
-    // Размещаем родительский паттерн по центру поля
-    const parentWidth = DEFAULT_PATTERN.EXTERNAL.width;
-    const parentHeight = DEFAULT_PATTERN.EXTERNAL.height;
-    const parentX = (stageSize.width - parentWidth) / 2;
-    const parentY = (stageSize.height - parentHeight) / 2;
-    const parentBounds = { x: parentX, y: parentY, width: parentWidth, height: parentHeight };
+    // Используем границы внутреннего прямоугольника как родительские границы
+    const innerRect = getInnerRectBounds(stageSize);
+    const parentBounds = {
+      x: innerRect.x,
+      y: innerRect.y,
+      width: innerRect.width,
+      height: innerRect.height
+    };
 
-    const childElements = [];
+    // Вычисляем масштабированный размер клетки на основе максимальных значений location
+    const maxValues = findMaxLocationValues(patterns, selectedPatternId);
+    const scaledGridSize = calculateScaledGridSize(parentBounds, maxValues);
 
-    // Отрисовываем внутренние паттерны
+    // Сначала собираем информацию о всех паттернах
+    const patternInfos = [];
+
+    // Собираем внутренние паттерны
     Object.entries(innerPatterns).forEach(([componentName, componentData]) => {
       if (!componentData || !componentData.pattern) return;
 
@@ -652,32 +688,26 @@ const App = () => {
         height: DEFAULT_PATTERN.INTERNAL.height,
       };
 
-      const position = calculateChildPosition(
+      const positionAndSize = calculateChildPosition(
         componentData.location,
         parentBounds,
         childSize,
-        true // isInner
+        true, // isInner
+        scaledGridSize // масштабированный размер клетки
       );
 
-      childElements.push(
-        <DefaultInternalRectangle
-          key={`inner-${componentName}`}
-          id={`inner-${componentName}`}
-          x={position.x}
-          y={position.y}
-          width={childSize.width}
-          height={childSize.height}
-          text={componentName}
-          isSelected={false}
-          onSelect={() => {}}
-          onDragEnd={() => {}}
-          nodeRef={() => {}}
-          stageSize={stageSize}
-        />
-      );
+      patternInfos.push({
+        componentName,
+        type: 'internal',
+        x: positionAndSize.x,
+        y: positionAndSize.y,
+        width: positionAndSize.width,
+        height: positionAndSize.height,
+        location: componentData.location,
+      });
     });
 
-    // Отрисовываем внешние паттерны
+    // Собираем внешние паттерны
     Object.entries(outerPatterns).forEach(([componentName, componentData]) => {
       if (!componentData || !componentData.pattern) return;
 
@@ -690,32 +720,277 @@ const App = () => {
         height: DEFAULT_PATTERN.EXTERNAL.height,
       };
 
-      const position = calculateChildPosition(
+      const positionAndSize = calculateChildPosition(
         componentData.location,
         parentBounds,
         childSize,
-        false // isInner
+        false, // isInner
+        scaledGridSize // масштабированный размер клетки
       );
 
-      childElements.push(
-        <DefaultExternalRectangle
-          key={`outer-${componentName}`}
-          id={`outer-${componentName}`}
-          x={position.x}
-          y={position.y}
-          width={childSize.width}
-          height={childSize.height}
-          text={componentName}
-          isSelected={false}
-          onSelect={() => {}}
-          onDragEnd={() => {}}
-          nodeRef={() => {}}
-          stageSize={stageSize}
-        />
+      patternInfos.push({
+        componentName,
+        type: 'external',
+        x: positionAndSize.x,
+        y: positionAndSize.y,
+        width: positionAndSize.width,
+        height: positionAndSize.height,
+        location: componentData.location,
+      });
+    });
+
+    // Сортируем паттерны: выбранный паттерн рендерим последним (он будет поверх)
+    const sortedPatternInfos = [...patternInfos].sort((a, b) => {
+      const aSelected = selectedChildPattern?.componentName === a.componentName;
+      const bSelected = selectedChildPattern?.componentName === b.componentName;
+      if (aSelected) return 1; // Выбранный в конец (поверх всех)
+      if (bSelected) return -1;
+      return 0;
+    });
+
+    const childElements = [];
+
+    // Рендерим все паттерны
+    sortedPatternInfos.forEach((patternInfo) => {
+      const { componentName, type, x, y, width, height } = patternInfo;
+      const isChildSelected = selectedChildPattern?.componentName === componentName;
+
+      // Получаем location для текущего паттерна
+      const patternLocation = type === 'internal' 
+        ? innerPatterns[componentName]?.location 
+        : outerPatterns[componentName]?.location;
+
+      // Вычисляем допустимые границы перемещения
+      const stageBounds = { x: 0, y: 0, width: stageSize.width, height: stageSize.height };
+      const dragBounds = calculateDragBounds(
+        patternLocation,
+        parentBounds,
+        { width, height },
+        scaledGridSize,
+        type === 'internal',
+        stageBounds
       );
+
+      const commonProps = {
+        key: `${type}-${componentName}`,
+        id: `${type}-${componentName}`,
+        x,
+        y,
+        width,
+        height,
+        text: componentName,
+        isSelected: isChildSelected,
+        draggable: true, // Включаем drag and drop
+        dragBoundFunc: (pos) => {
+          // Ограничиваем перемещение допустимыми границами
+          let newX = Math.max(dragBounds.minX, Math.min(pos.x, dragBounds.maxX));
+          let newY = Math.max(dragBounds.minY, Math.min(pos.y, dragBounds.maxY));
+          
+          // Для внешних паттернов - не допускаем попадание во внутреннюю область
+          if (type === 'external' && dragBounds.forbiddenZone) {
+            const fz = dragBounds.forbiddenZone;
+            const patternRight = newX + width;
+            const patternBottom = newY + height;
+            
+            // Проверяем пересечение с запретной зоной
+            const intersects = !(
+              patternRight <= fz.x ||
+              newX >= fz.x + fz.width ||
+              patternBottom <= fz.y ||
+              newY >= fz.y + fz.height
+            );
+            
+            if (intersects) {
+              // Выталкиваем паттерн из запретной зоны к ближайшей стороне
+              const distToLeft = patternRight - fz.x;
+              const distToRight = fz.x + fz.width - newX;
+              const distToTop = patternBottom - fz.y;
+              const distToBottom = fz.y + fz.height - newY;
+              
+              const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
+              
+              if (minDist === distToLeft) {
+                newX = fz.x - width;
+              } else if (minDist === distToRight) {
+                newX = fz.x + fz.width;
+              } else if (minDist === distToTop) {
+                newY = fz.y - height;
+              } else {
+                newY = fz.y + fz.height;
+              }
+              
+              // Убеждаемся, что не вышли за границы сцены
+              newX = Math.max(dragBounds.minX, Math.min(newX, dragBounds.maxX));
+              newY = Math.max(dragBounds.minY, Math.min(newY, dragBounds.maxY));
+            }
+          }
+          
+          return { x: newX, y: newY };
+        },
+        onDragMove: (e) => {
+          // Обновляем bounds при перетаскивании для обновления стрелок
+          if (isChildSelected) {
+            const node = e.target;
+            const rect = node.getClientRect();
+            setSelectedChildPattern(prev => ({
+              ...prev,
+              bounds: {
+                x: rect.x,
+                y: rect.y,
+                width: rect.width,
+                height: rect.height
+              }
+            }));
+          }
+        },
+        onDragEnd: (e) => {
+          // Сохраняем финальную позицию после перетаскивания
+          if (isChildSelected) {
+            const node = e.target;
+            const rect = node.getClientRect();
+            setSelectedChildPattern(prev => ({
+              ...prev,
+              bounds: {
+                x: rect.x,
+                y: rect.y,
+                width: rect.width,
+                height: rect.height
+              }
+            }));
+          }
+        },
+        onSelect: (e) => {
+          // Получаем реальную позицию паттерна из узла Konva
+          const node = e?.target;
+          if (node) {
+            const rect = node.getClientRect();
+            setSelectedChildPattern({
+              componentName,
+              type,
+              bounds: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+              location: patternLocation
+            });
+          } else {
+            // Fallback на начальные координаты
+            setSelectedChildPattern({
+              componentName,
+              type,
+              bounds: { x, y, width, height },
+              location: patternLocation
+            });
+          }
+        },
+        nodeRef: () => {},
+        stageSize,
+        zIndex: isChildSelected ? 1000 : 1, // Выбранный паттерн поверх других
+      };
+
+      if (type === 'internal') {
+        childElements.push(<DefaultInternalRectangle {...commonProps} />);
+      } else {
+        childElements.push(<DefaultExternalRectangle {...commonProps} />);
+      }
+
+
     });
 
     return childElements;
+  };
+
+  /**
+   * Обработчик изменения location
+   */
+  const handleLocationChange = (newLocation) => {
+    if (!selectedChildPattern || !selectedPattern) return;
+
+    const { componentName, type } = selectedChildPattern;
+    
+    // Обновляем location в selectedPattern
+    const updatedPattern = { ...selectedPattern };
+    const targetContainer = type === 'internal' ? 'inner' : 'outer';
+    
+    if (updatedPattern[targetContainer] && updatedPattern[targetContainer][componentName]) {
+      updatedPattern[targetContainer] = {
+        ...updatedPattern[targetContainer],
+        [componentName]: {
+          ...updatedPattern[targetContainer][componentName],
+          location: newLocation
+        }
+      };
+      
+      // Сразу обновляем selectedPattern для немедленного отображения
+      setSelectedPattern({
+        ...updatedPattern,
+        id: selectedPatternId,
+      });
+      
+      // Сохраняем изменения в patterns
+      setPatterns(prev => ({
+        ...prev,
+        [selectedPatternId]: updatedPattern
+      }));
+      
+      // Пересчитываем позицию паттерна с новым location
+      const innerRect = getInnerRectBounds(stageSize);
+      const parentBounds = {
+        x: innerRect.x,
+        y: innerRect.y,
+        width: innerRect.width,
+        height: innerRect.height
+      };
+      
+      const childSize = type === 'internal' 
+        ? { width: DEFAULT_PATTERN.INTERNAL.width, height: DEFAULT_PATTERN.INTERNAL.height }
+        : { width: DEFAULT_PATTERN.EXTERNAL.width, height: DEFAULT_PATTERN.EXTERNAL.height };
+      
+      const newPositionAndSize = calculateChildPosition(
+        newLocation,
+        parentBounds,
+        childSize,
+        type === 'internal'
+      );
+      
+      // Обновляем selectedChildPattern с новыми координатами
+      setSelectedChildPattern({
+        componentName,
+        type,
+        bounds: {
+          x: newPositionAndSize.x,
+          y: newPositionAndSize.y,
+          width: newPositionAndSize.width,
+          height: newPositionAndSize.height
+        },
+        location: newLocation
+      });
+    }
+  };
+
+  /**
+   * Рендерит стрелки location (отдельный слой под паттернами)
+   */
+  const renderLocationArrows = () => {
+    if (!selectedChildPattern) return null;
+
+    const innerRect = getInnerRectBounds(stageSize);
+    const parentBounds = {
+      x: innerRect.x,
+      y: innerRect.y,
+      width: innerRect.width,
+      height: innerRect.height
+    };
+
+    return (
+      <Layer listening={true} name="arrows-layer">
+        <LocationArrows
+          patternBounds={selectedChildPattern.bounds}
+          parentBounds={parentBounds}
+          location={selectedChildPattern.location || {}}
+          isInner={selectedChildPattern.type === 'internal'}
+          onLocationChange={handleLocationChange}
+          stageRef={stageRef}
+        />
+      </Layer>
+    );
   };
 
   /**
@@ -866,6 +1141,7 @@ const App = () => {
           {/* Контейнер Stage */}
           <div style={containerStyles.stageContainer}>
             <Stage
+              ref={stageRef}
               width={stageSize.width}
               height={stageSize.height}
               onMouseDown={handleMouseDown}
@@ -880,6 +1156,7 @@ const App = () => {
               {renderGrid()}
               {renderInnerRect()}
               {renderBlocks()}
+              {renderLocationArrows()}
             </Stage>
           </div>
         </div>
@@ -895,6 +1172,46 @@ const App = () => {
             /> 
         </div>
       </div>
+
+      {/* HTML input для редактирования location */}
+      {locationEditor && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${locationEditor.position.x}px`,
+            top: `${locationEditor.position.y}px`,
+            transform: 'translate(-50%, -50%)',
+            zIndex: 10000,
+          }}
+        >
+          <input
+            ref={locationEditor.inputRef}
+            type="text"
+            value={locationEditor.value}
+            onChange={(e) => locationEditor.onChange(e.target.value)}
+            onKeyDown={locationEditor.onKeyDown}
+            onBlur={() => {
+              locationEditor.onSave();
+              window.__locationEditorState = null;
+            }}
+            autoFocus
+            style={{
+              width: '80px',
+              padding: '6px 10px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              fontFamily: 'Inter, sans-serif',
+              color: '#D72B00',
+              backgroundColor: '#FFFFFF',
+              border: '2px solid #D72B00',
+              borderRadius: '4px',
+              outline: 'none',
+              textAlign: 'center',
+              boxShadow: '0 4px 12px rgba(215, 43, 0, 0.3)',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };

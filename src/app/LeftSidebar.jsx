@@ -25,43 +25,45 @@ const LeftSidebar = ({ patterns, selectedPatternId, selectedComponentId, onSelec
             }}
         >
             {/* Кнопка добавления паттерна */}
-            <button
-                onClick={onCreateEmptyPattern}
-                style={{
-                    position: 'absolute',
-                    top: '0',
-                    left: '0',
-                    width: '32px',
-                    height: '32px',
-                    minWidth: '32px',
-                    minHeight: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: COLORS.PRIMARY,
-                    color: '#fff',
-                    border: 'none',
-                    fontSize: '20px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0',
-                    lineHeight: '1',
-                    zIndex: 10,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                    transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#b52300';
-                    e.target.style.transform = 'scale(1.1)';
-                }}
-                onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = COLORS.PRIMARY;
-                    e.target.style.transform = 'scale(1)';
-                }}
-            >
-                +
-            </button>
+            <div style={{
+                position: 'absolute',
+                left: '8px',
+                zIndex: 10,
+            }}>
+                <button
+                    data-cy="add-empty-pattern-btn"
+                    onClick={onCreateEmptyPattern}
+                    style={{
+                        width: '40px',
+                        height: '40px',
+                        minWidth: '40px',
+                        minHeight: '40px',
+                        borderRadius: '50%',
+                        backgroundColor: COLORS.PRIMARY,
+                        color: '#fff',
+                        border: 'none',
+                        fontSize: '28px',
+                        fontWeight: 'normal',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '0',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                        transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = '#b52300';
+                        e.target.style.transform = 'scale(1.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = COLORS.PRIMARY;
+                        e.target.style.transform = 'scale(1)';
+                    }}
+                >
+                    +
+                </button>
+            </div>
 
             {/* Контейнер с паттернами и скроллом */}
             <div 

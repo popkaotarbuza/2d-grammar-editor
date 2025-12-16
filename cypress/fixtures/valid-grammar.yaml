@@ -1,0 +1,43 @@
+patterns:
+  teacher:
+    description: преподаватель
+    kind: cell
+    content_type: teacher
+
+  room:
+    description: аудитория
+    kind: cell
+    content_type: room
+
+  discipline:
+    description: дисциплина
+    kind: cell
+    content_type: discipline
+  
+  lesson:
+    description: занятие
+    kind: area
+
+    inner:  # содержимое
+      discipline:
+        pattern: discipline
+        location:
+          - top  # упаковано сверху и по бокам
+          - left
+          - right
+
+      teacher:
+        pattern: teacher
+        location:
+          top: 1+
+          left: 0..4
+          right: 0+
+          bottom: 0..1
+
+      room:
+        pattern: room
+        location:
+          top: 1+
+          right: 0..3
+          left: 0+
+          bottom: 0..2
