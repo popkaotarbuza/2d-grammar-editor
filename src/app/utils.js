@@ -313,79 +313,202 @@ export const calculateScaledGridSize = (parentBounds, maxValues) => {
  * Вычисляет допустимую область перемещения для паттерна на основе его location
  * 
  * @param {Object} location - Объект location
- * @param {Object} parentBounds - Границы родительского контейнера
+ * @param {Object} parentBounds - Границы внутренней области (для внутренних паттернов)
  * @param {Object} childSize - Размеры дочернего паттерна
  * @param {Object} gridSize - Размеры клетки {gridSizeX, gridSizeY}
  * @param {boolean} isInner - true если внутренний паттерн
+ * @param {Object} stageBounds - Границы всей сцены (для внешних паттернов)
  * @returns {Object} {minX, maxX, minY, maxY} - Допустимые границы перемещения
  */
-export const calculateDragBounds = (location, parentBounds, childSize, gridSize, isInner = true) => {
-  if (!location || typeof location !== 'object') {
-    // Если location не задан, можно перемещать по всему контейнеру
+export const calculateDragBounds = (location, parentBounds, childSize, gridSize, isInner = true, stageBounds = null) => {
+  const { gridSizeX, gridSizeY } = gridSize || { gridSizeX: SIZES.GRID_SIZE, gridSizeY: SIZES.GRID_SIZE };
+
+  if (isInner) {
+    // Для внутренних паттернов - перемещение внутри parentBounds
+    if (!location || typeof location !== 'object') {
+      return {
+        minX: parentBounds.x,
+        maxX: parentBounds.x + parentBounds.width - childSize.width,
+        minY: parentBounds.y,
+        maxY: parentBounds.y + parentBounds.height - childSize.height
+      };
+    }
+
+    // Нормализуем location
+    const normalizedLocation = {};
+    ['top', 'right', 'bottom', 'left'].forEach(side => {
+      if (location[side] !== undefined) normalizedLocation[side] = location[side];
+      if (location[`margin-${side}`] !== undefined) normalizedLocation[side] = location[`margin-${side}`];
+      if (location[`padding-${side}`] !== undefined) normalizedLocation[side] = location[`padding-${side}`];
+    });
+
+    // Парсим значения
+    const topOffset = parseLocationValue(normalizedLocation.top);
+    const rightOffset = parseLocationValue(normalizedLocation.right);
+    const bottomOffset = parseLocationValue(normalizedLocation.bottom);
+    const leftOffset = parseLocationValue(normalizedLocation.left);
+
+    // Вычисляем границы в пикселях
+    const leftMin = leftOffset.min * gridSizeX;
+    const leftMax = (leftOffset.max === Infinity ? leftOffset.min + 10 : leftOffset.max) * gridSizeX;
+    const rightMin = rightOffset.min * gridSizeX;
+    const rightMax = (rightOffset.max === Infinity ? rightOffset.min + 10 : rightOffset.max) * gridSizeX;
+    const topMin = topOffset.min * gridSizeY;
+    const topMax = (topOffset.max === Infinity ? topOffset.min + 10 : topOffset.max) * gridSizeY;
+    const bottomMin = bottomOffset.min * gridSizeY;
+    const bottomMax = (bottomOffset.max === Infinity ? bottomOffset.min + 10 : bottomOffset.max) * gridSizeY;
+
+    let minX = parentBounds.x;
+    let maxX = parentBounds.x + parentBounds.width - childSize.width;
+    let minY = parentBounds.y;
+    let maxY = parentBounds.y + parentBounds.height - childSize.height;
+
+    if (normalizedLocation.left !== undefined) {
+      minX = parentBounds.x + leftMin;
+      maxX = Math.min(maxX, parentBounds.x + leftMax);
+    }
+    if (normalizedLocation.right !== undefined) {
+      minX = Math.max(minX, parentBounds.x + parentBounds.width - childSize.width - rightMax);
+      maxX = Math.min(maxX, parentBounds.x + parentBounds.width - childSize.width - rightMin);
+    }
+    if (normalizedLocation.top !== undefined) {
+      minY = parentBounds.y + topMin;
+      maxY = Math.min(maxY, parentBounds.y + topMax);
+    }
+    if (normalizedLocation.bottom !== undefined) {
+      minY = Math.max(minY, parentBounds.y + parentBounds.height - childSize.height - bottomMax);
+      maxY = Math.min(maxY, parentBounds.y + parentBounds.height - childSize.height - bottomMin);
+    }
+
+    return { minX, maxX, minY, maxY };
+  } else {
+    // Для внешних паттернов - перемещение СНАРУЖИ parentBounds, но внутри stageBounds
+    const stage = stageBounds || { x: 0, y: 0, width: 1000, height: 700 };
+    
+    if (!location || typeof location !== 'object') {
+      // Если location не задан - вся область сцены минус внутренняя область
+      return {
+        minX: stage.x,
+        maxX: stage.x + stage.width - childSize.width,
+        minY: stage.y,
+        maxY: stage.y + stage.height - childSize.height,
+        forbiddenZone: {
+          x: parentBounds.x,
+          y: parentBounds.y,
+          width: parentBounds.width,
+          height: parentBounds.height
+        }
+      };
+    }
+
+    // Нормализуем location
+    const normalizedLocation = {};
+    ['top', 'right', 'bottom', 'left'].forEach(side => {
+      if (location[side] !== undefined) normalizedLocation[side] = location[side];
+      if (location[`margin-${side}`] !== undefined) normalizedLocation[side] = location[`margin-${side}`];
+      if (location[`padding-${side}`] !== undefined) normalizedLocation[side] = location[`padding-${side}`];
+    });
+
+    // Парсим значения
+    const topOffset = parseLocationValue(normalizedLocation.top);
+    const rightOffset = parseLocationValue(normalizedLocation.right);
+    const bottomOffset = parseLocationValue(normalizedLocation.bottom);
+    const leftOffset = parseLocationValue(normalizedLocation.left);
+
+    const hasLeft = normalizedLocation.left !== undefined;
+    const hasRight = normalizedLocation.right !== undefined;
+    const hasTop = normalizedLocation.top !== undefined;
+    const hasBottom = normalizedLocation.bottom !== undefined;
+    
+    const leftIsZero = hasLeft && leftOffset.min === 0;
+    const rightIsZero = hasRight && rightOffset.min === 0;
+    const topIsZero = hasTop && topOffset.min === 0;
+    const bottomIsZero = hasBottom && bottomOffset.min === 0;
+
+    // Вычисляем границы в пикселях
+    const { gridSizeX, gridSizeY } = gridSize || { gridSizeX: SIZES.GRID_SIZE, gridSizeY: SIZES.GRID_SIZE };
+    const leftMin = leftOffset.min * gridSizeX;
+    const leftMax = (leftOffset.max === Infinity ? leftOffset.min + 10 : leftOffset.max) * gridSizeX;
+    const rightMin = rightOffset.min * gridSizeX;
+    const rightMax = (rightOffset.max === Infinity ? rightOffset.min + 10 : rightOffset.max) * gridSizeX;
+    const topMin = topOffset.min * gridSizeY;
+    const topMax = (topOffset.max === Infinity ? topOffset.min + 10 : topOffset.max) * gridSizeY;
+    const bottomMin = bottomOffset.min * gridSizeY;
+    const bottomMax = (bottomOffset.max === Infinity ? bottomOffset.min + 10 : bottomOffset.max) * gridSizeY;
+
+    let minX = stage.x;
+    let maxX = stage.x + stage.width - childSize.width;
+    let minY = stage.y;
+    let maxY = stage.y + stage.height - childSize.height;
+
+    // Ограничиваем перемещение на основе location
+    if (hasLeft) {
+      // Паттерн слева от внутренней области
+      const leftBoundary = parentBounds.x - childSize.width;
+      if (leftIsZero) {
+        // При left=0 паттерн намертво прижат к левой границе
+        minX = maxX = leftBoundary;
+      } else {
+        // При left>0 паттерн может перемещаться в диапазоне
+        minX = leftBoundary - leftMax;
+        maxX = leftBoundary - leftMin;
+      }
+    } else if (hasRight) {
+      // Паттерн справа от внутренней области
+      const rightBoundary = parentBounds.x + parentBounds.width;
+      if (rightIsZero) {
+        // При right=0 паттерн намертво прижат к правой границе
+        minX = maxX = rightBoundary;
+      } else {
+        // При right>0 паттерн может перемещаться в диапазоне
+        minX = rightBoundary + rightMin;
+        maxX = rightBoundary + rightMax;
+      }
+    }
+
+    if (hasTop) {
+      // Паттерн сверху от внутренней области
+      const topBoundary = parentBounds.y - childSize.height;
+      if (topIsZero) {
+        // При top=0 паттерн намертво прижат к верхней границе
+        minY = maxY = topBoundary;
+      } else {
+        // При top>0 паттерн может перемещаться в диапазоне
+        minY = topBoundary - topMax;
+        maxY = topBoundary - topMin;
+      }
+    } else if (hasBottom) {
+      // Паттерн снизу от внутренней области
+      const bottomBoundary = parentBounds.y + parentBounds.height;
+      if (bottomIsZero) {
+        // При bottom=0 паттерн намертво прижат к нижней границе
+        minY = maxY = bottomBoundary;
+      } else {
+        // При bottom>0 паттерн может перемещаться в диапазоне
+        minY = bottomBoundary + bottomMin;
+        maxY = bottomBoundary + bottomMax;
+      }
+    }
+
+    // Убеждаемся, что не выходим за границы сцены
+    minX = Math.max(minX, stage.x);
+    maxX = Math.min(maxX, stage.x + stage.width - childSize.width);
+    minY = Math.max(minY, stage.y);
+    maxY = Math.min(maxY, stage.y + stage.height - childSize.height);
+
     return {
-      minX: parentBounds.x,
-      maxX: parentBounds.x + parentBounds.width - childSize.width,
-      minY: parentBounds.y,
-      maxY: parentBounds.y + parentBounds.height - childSize.height
+      minX,
+      maxX,
+      minY,
+      maxY,
+      forbiddenZone: {
+        x: parentBounds.x,
+        y: parentBounds.y,
+        width: parentBounds.width,
+        height: parentBounds.height
+      }
     };
   }
-
-  const { gridSizeX, gridSizeY } = gridSize;
-
-  // Нормализуем location
-  const normalizedLocation = {};
-  ['top', 'right', 'bottom', 'left'].forEach(side => {
-    if (location[side] !== undefined) {
-      normalizedLocation[side] = location[side];
-    }
-    if (location[`margin-${side}`] !== undefined) {
-      normalizedLocation[side] = location[`margin-${side}`];
-    }
-    if (location[`padding-${side}`] !== undefined) {
-      normalizedLocation[side] = location[`padding-${side}`];
-    }
-  });
-
-  // Парсим значения
-  const topOffset = parseLocationValue(normalizedLocation.top);
-  const rightOffset = parseLocationValue(normalizedLocation.right);
-  const bottomOffset = parseLocationValue(normalizedLocation.bottom);
-  const leftOffset = parseLocationValue(normalizedLocation.left);
-
-  // Вычисляем границы в пикселях
-  const leftMin = leftOffset.min * gridSizeX;
-  const leftMax = (leftOffset.max === Infinity ? leftOffset.min + 10 : leftOffset.max) * gridSizeX;
-  const rightMin = rightOffset.min * gridSizeX;
-  const rightMax = (rightOffset.max === Infinity ? rightOffset.min + 10 : rightOffset.max) * gridSizeX;
-  const topMin = topOffset.min * gridSizeY;
-  const topMax = (topOffset.max === Infinity ? topOffset.min + 10 : topOffset.max) * gridSizeY;
-  const bottomMin = bottomOffset.min * gridSizeY;
-  const bottomMax = (bottomOffset.max === Infinity ? bottomOffset.min + 10 : bottomOffset.max) * gridSizeY;
-
-  let minX = parentBounds.x;
-  let maxX = parentBounds.x + parentBounds.width - childSize.width;
-  let minY = parentBounds.y;
-  let maxY = parentBounds.y + parentBounds.height - childSize.height;
-
-  // Определяем границы на основе заданных сторон
-  if (normalizedLocation.left !== undefined) {
-    minX = parentBounds.x + leftMin;
-    maxX = parentBounds.x + leftMax;
-  }
-  if (normalizedLocation.right !== undefined) {
-    minX = Math.max(minX, parentBounds.x + parentBounds.width - childSize.width - rightMax);
-    maxX = Math.min(maxX, parentBounds.x + parentBounds.width - childSize.width - rightMin);
-  }
-  if (normalizedLocation.top !== undefined) {
-    minY = parentBounds.y + topMin;
-    maxY = parentBounds.y + topMax;
-  }
-  if (normalizedLocation.bottom !== undefined) {
-    minY = Math.max(minY, parentBounds.y + parentBounds.height - childSize.height - bottomMax);
-    maxY = Math.min(maxY, parentBounds.y + parentBounds.height - childSize.height - bottomMin);
-  }
-
-  return { minX, maxX, minY, maxY };
 };
 
 /**
@@ -530,30 +653,39 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
     const bottomIsZero = hasBottom && bottomOffset.min === 0;
 
     // Определяем горизонтальную позицию
+    // Для внешних паттернов: при left=0 паттерн прижимается к левой границе внутренней области (снаружи)
     if (hasLeft) {
-      // Размещаем слева от родителя
+      // Размещаем слева от внутренней области
+      // При left=0 паттерн прижат к левой границе, при left>0 отступает влево
       x = parentBounds.x - childSize.width - left;
       
-      // Если зафиксирован к левой стороне (left = 0), растягиваем по высоте родителя
+      // Определяем вертикальную позицию
       if (leftIsZero && topIsZero && bottomIsZero) {
+        // Растягиваем по высоте
         y = parentBounds.y;
         height = parentBounds.height;
       } else if (leftIsZero && topIsZero) {
+        // Прижимаем к верхнему левому углу
         y = parentBounds.y;
       } else if (leftIsZero && bottomIsZero) {
+        // Прижимаем к нижнему левому углу
         y = parentBounds.y + parentBounds.height - childSize.height;
       } else if (hasTop) {
-        y = parentBounds.y - childSize.height - top;
+        // Позиционируем по top
+        y = parentBounds.y + top;
       } else if (hasBottom) {
-        y = parentBounds.y + parentBounds.height + bottom;
+        // Позиционируем по bottom
+        y = parentBounds.y + parentBounds.height - childSize.height - bottom;
       } else {
-        y = parentBounds.y;
+        // По умолчанию - по центру вертикально
+        y = parentBounds.y + (parentBounds.height - childSize.height) / 2;
       }
     } else if (hasRight) {
-      // Размещаем справа от родителя
+      // Размещаем справа от внутренней области
+      // При right=0 паттерн прижат к правой границе, при right>0 отступает вправо
       x = parentBounds.x + parentBounds.width + right;
       
-      // Если зафиксирован к правой стороне (right = 0), растягиваем по высоте родителя
+      // Определяем вертикальную позицию
       if (rightIsZero && topIsZero && bottomIsZero) {
         y = parentBounds.y;
         height = parentBounds.height;
@@ -562,17 +694,18 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
       } else if (rightIsZero && bottomIsZero) {
         y = parentBounds.y + parentBounds.height - childSize.height;
       } else if (hasTop) {
-        y = parentBounds.y - childSize.height - top;
+        y = parentBounds.y + top;
       } else if (hasBottom) {
-        y = parentBounds.y + parentBounds.height + bottom;
+        y = parentBounds.y + parentBounds.height - childSize.height - bottom;
       } else {
-        y = parentBounds.y;
+        y = parentBounds.y + (parentBounds.height - childSize.height) / 2;
       }
     } else if (hasTop) {
-      // Размещаем сверху от родителя
+      // Размещаем сверху от внутренней области
+      // При top=0 паттерн прижат к верхней границе, при top>0 отступает вверх
       y = parentBounds.y - childSize.height - top;
       
-      // Если зафиксирован к верхней стороне (top = 0), растягиваем по ширине родителя
+      // Определяем горизонтальную позицию
       if (topIsZero && leftIsZero && rightIsZero) {
         x = parentBounds.x;
         width = parentBounds.width;
@@ -581,13 +714,15 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
       } else if (topIsZero && rightIsZero) {
         x = parentBounds.x + parentBounds.width - childSize.width;
       } else {
-        x = parentBounds.x;
+        // По умолчанию - по центру горизонтально
+        x = parentBounds.x + (parentBounds.width - childSize.width) / 2;
       }
     } else if (hasBottom) {
-      // Размещаем снизу от родителя
+      // Размещаем снизу от внутренней области
+      // При bottom=0 паттерн прижат к нижней границе, при bottom>0 отступает вниз
       y = parentBounds.y + parentBounds.height + bottom;
       
-      // Если зафиксирован к нижней стороне (bottom = 0), растягиваем по ширине родителя
+      // Определяем горизонтальную позицию
       if (bottomIsZero && leftIsZero && rightIsZero) {
         x = parentBounds.x;
         width = parentBounds.width;
@@ -596,12 +731,13 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
       } else if (bottomIsZero && rightIsZero) {
         x = parentBounds.x + parentBounds.width - childSize.width;
       } else {
-        x = parentBounds.x;
+        // По умолчанию - по центру горизонтально
+        x = parentBounds.x + (parentBounds.width - childSize.width) / 2;
       }
     } else {
-      // По умолчанию справа
-      x = parentBounds.x + parentBounds.width + right;
-      y = parentBounds.y;
+      // По умолчанию - справа по центру
+      x = parentBounds.x + parentBounds.width;
+      y = parentBounds.y + (parentBounds.height - childSize.height) / 2;
     }
 
     return { x, y, width, height };

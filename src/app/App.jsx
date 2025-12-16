@@ -659,12 +659,14 @@ const App = () => {
         : outerPatterns[componentName]?.location;
 
       // Вычисляем допустимые границы перемещения
+      const stageBounds = { x: 0, y: 0, width: stageSize.width, height: stageSize.height };
       const dragBounds = calculateDragBounds(
         patternLocation,
         parentBounds,
         { width, height },
         scaledGridSize,
-        type === 'internal'
+        type === 'internal',
+        stageBounds
       );
 
       const commonProps = {
@@ -679,10 +681,49 @@ const App = () => {
         draggable: true, // Включаем drag and drop
         dragBoundFunc: (pos) => {
           // Ограничиваем перемещение допустимыми границами
-          return {
-            x: Math.max(dragBounds.minX, Math.min(pos.x, dragBounds.maxX)),
-            y: Math.max(dragBounds.minY, Math.min(pos.y, dragBounds.maxY))
-          };
+          let newX = Math.max(dragBounds.minX, Math.min(pos.x, dragBounds.maxX));
+          let newY = Math.max(dragBounds.minY, Math.min(pos.y, dragBounds.maxY));
+          
+          // Для внешних паттернов - не допускаем попадание во внутреннюю область
+          if (type === 'external' && dragBounds.forbiddenZone) {
+            const fz = dragBounds.forbiddenZone;
+            const patternRight = newX + width;
+            const patternBottom = newY + height;
+            
+            // Проверяем пересечение с запретной зоной
+            const intersects = !(
+              patternRight <= fz.x ||
+              newX >= fz.x + fz.width ||
+              patternBottom <= fz.y ||
+              newY >= fz.y + fz.height
+            );
+            
+            if (intersects) {
+              // Выталкиваем паттерн из запретной зоны к ближайшей стороне
+              const distToLeft = patternRight - fz.x;
+              const distToRight = fz.x + fz.width - newX;
+              const distToTop = patternBottom - fz.y;
+              const distToBottom = fz.y + fz.height - newY;
+              
+              const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
+              
+              if (minDist === distToLeft) {
+                newX = fz.x - width;
+              } else if (minDist === distToRight) {
+                newX = fz.x + fz.width;
+              } else if (minDist === distToTop) {
+                newY = fz.y - height;
+              } else {
+                newY = fz.y + fz.height;
+              }
+              
+              // Убеждаемся, что не вышли за границы сцены
+              newX = Math.max(dragBounds.minX, Math.min(newX, dragBounds.maxX));
+              newY = Math.max(dragBounds.minY, Math.min(newY, dragBounds.maxY));
+            }
+          }
+          
+          return { x: newX, y: newY };
         },
         onDragMove: (e) => {
           // Обновляем bounds при перетаскивании для обновления стрелок
