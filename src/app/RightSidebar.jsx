@@ -4,9 +4,9 @@ import { buttonStyles, inputStyles, textStyles } from './styles.js';
 import './mainWindow.css';
 
 /**
- * Компонент для красивого отображения location
+ * Компонент для редактирования location
  */
-const LocationDisplay = ({ location }) => {
+const LocationEditor = ({ location, onLocationChange }) => {
     const sides = ['top', 'right', 'bottom', 'left'];
     const sideLabels = {
         top: '↑ Верх',
@@ -15,72 +15,203 @@ const LocationDisplay = ({ location }) => {
         left: '← Лево'
     };
 
-    // Проверяем наличие location и что это объект с данными
-    let locationData = {};
-    let hasValues = false;
+    const [isEditing, setIsEditing] = useState(false);
+    const [localLocation, setLocalLocation] = useState(location || {});
 
-    if (location && typeof location === 'object' && !Array.isArray(location)) {
-        locationData = location;
-        hasValues = sides.some(side => locationData[side] !== undefined && locationData[side] !== null);
+    React.useEffect(() => {
+        setLocalLocation(location || {});
+    }, [location]);
+
+    const handleSideChange = (side, value) => {
+        const newLocation = { ...localLocation };
+        if (value === '' || value === null || value === undefined) {
+            delete newLocation[side];
+        } else {
+            newLocation[side] = value;
+        }
+        setLocalLocation(newLocation);
+    };
+
+    const handleSave = () => {
+        onLocationChange(localLocation);
+        setIsEditing(false);
+    };
+
+    const handleCancel = () => {
+        setLocalLocation(location || {});
+        setIsEditing(false);
+    };
+
+    const hasValues = sides.some(side => localLocation[side] !== undefined && localLocation[side] !== null);
+
+    if (!isEditing) {
+        return (
+            <div style={{
+                marginTop: '8px',
+                padding: '8px',
+                backgroundColor: '#f9f9f9',
+                borderRadius: '4px',
+                fontSize: '11px',
+            }}>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '6px',
+                }}>
+                    <div style={{
+                        fontWeight: 'bold',
+                        color: '#666',
+                        fontSize: '12px',
+                    }}>
+                        Location:
+                    </div>
+                    <button
+                        onClick={() => setIsEditing(true)}
+                        style={{
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#D72B00',
+                            fontSize: '12px',
+                            padding: '2px 4px',
+                        }}
+                    >
+                        ✏️
+                    </button>
+                </div>
+                {!hasValues ? (
+                    <div style={{
+                        color: '#999',
+                        fontStyle: 'italic',
+                        fontSize: '11px',
+                    }}>
+                        не задан
+                    </div>
+                ) : (
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '4px',
+                    }}>
+                        {sides.map(side => {
+                            const value = localLocation[side];
+                            if (value === undefined || value === null) return null;
+                            
+                            return (
+                                <div 
+                                    key={side}
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        padding: '2px 4px',
+                                    }}
+                                >
+                                    <span style={{ color: '#666' }}>{sideLabels[side]}:</span>
+                                    <span style={{ 
+                                        fontWeight: 'bold', 
+                                        color: '#333',
+                                        fontFamily: 'monospace',
+                                    }}>
+                                        {String(value)}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
     }
 
     return (
         <div style={{
             marginTop: '8px',
             padding: '8px',
-            backgroundColor: '#f9f9f9',
+            backgroundColor: '#f0f8ff',
             borderRadius: '4px',
-            fontSize: '11px',
+            border: '1px solid #D72B00',
         }}>
             <div style={{
                 fontWeight: 'bold',
-                marginBottom: '6px',
+                marginBottom: '8px',
                 color: '#666',
                 fontSize: '12px',
             }}>
-                Location:
+                Редактирование Location:
             </div>
-            {!hasValues ? (
-                <div style={{
-                    color: '#999',
-                    fontStyle: 'italic',
-                    fontSize: '11px',
-                }}>
-                    не задан
-                </div>
-            ) : (
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '4px',
-                }}>
-                    {sides.map(side => {
-                        const value = locationData[side];
-                        if (value === undefined || value === null) return null;
-                        
-                        return (
-                            <div 
-                                key={side}
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    padding: '2px 4px',
-                                }}
-                            >
-                                <span style={{ color: '#666' }}>{sideLabels[side]}:</span>
-                                <span style={{ 
-                                    fontWeight: 'bold', 
-                                    color: '#333',
-                                    fontFamily: 'monospace',
-                                }}>
-                                    {String(value)}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+            }}>
+                {sides.map(side => (
+                    <div key={side} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                    }}>
+                        <label style={{
+                            minWidth: '60px',
+                            fontSize: '11px',
+                            color: '#666',
+                        }}>
+                            {sideLabels[side]}:
+                        </label>
+                        <input
+                            type="text"
+                            value={localLocation[side] || ''}
+                            onChange={(e) => handleSideChange(side, e.target.value)}
+                            placeholder="0, 0+, 0..2"
+                            style={{
+                                flex: 1,
+                                padding: '4px 6px',
+                                fontSize: '11px',
+                                border: '1px solid #ddd',
+                                borderRadius: '3px',
+                                fontFamily: 'monospace',
+                            }}
+                        />
+                    </div>
+                ))}
+            </div>
+            <div style={{
+                display: 'flex',
+                gap: '6px',
+                marginTop: '8px',
+            }}>
+                <button
+                    onClick={handleSave}
+                    style={{
+                        flex: 1,
+                        padding: '4px 8px',
+                        fontSize: '11px',
+                        backgroundColor: '#4CAF50',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '3px',
+                        cursor: 'pointer',
+                    }}
+                >
+                    ✓ Сохранить
+                </button>
+                <button
+                    onClick={handleCancel}
+                    style={{
+                        flex: 1,
+                        padding: '4px 8px',
+                        fontSize: '11px',
+                        backgroundColor: '#999',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '3px',
+                        cursor: 'pointer',
+                    }}
+                >
+                    ✕ Отмена
+                </button>
+            </div>
         </div>
     );
 };
@@ -661,7 +792,25 @@ const RightSidebar = forwardRef(
                         }}>
                             Нет внутренних паттернов. Нажмите + для добавления.
                         </div>
-                    )}
+                        {componentData && (
+                            <LocationEditor 
+                                location={componentData.location} 
+                                onLocationChange={(newLocation) => {
+                                    setLocalPattern(prev => ({
+                                        ...prev,
+                                        inner: {
+                                            ...prev.inner,
+                                            [componentName]: {
+                                                ...prev.inner[componentName],
+                                                location: newLocation
+                                            }
+                                        }
+                                    }));
+                                }}
+                            />
+                        )}
+                    </div>
+                ))}
 
                     {/* Внешние паттерны */}
                     <div style={{
@@ -714,7 +863,25 @@ const RightSidebar = forwardRef(
                         }}>
                             Нет внешних паттернов. Нажмите + для добавления.
                         </div>
-                    )}
+                        {componentData && (
+                            <LocationEditor 
+                                location={componentData.location} 
+                                onLocationChange={(newLocation) => {
+                                    setLocalPattern(prev => ({
+                                        ...prev,
+                                        outer: {
+                                            ...prev.outer,
+                                            [componentName]: {
+                                                ...prev.outer[componentName],
+                                                location: newLocation
+                                            }
+                                        }
+                                    }));
+                                }}
+                            />
+                        )}
+                    </div>
+                ))}
 
                     {/* Extends */}
                     <div style={{

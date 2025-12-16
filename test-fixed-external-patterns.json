@@ -1,0 +1,71 @@
+{
+  "patterns": {
+    "main-pattern": {
+      "name": "Main Pattern with Fixed External",
+      "inner": {
+        "center": {
+          "pattern": "child-pattern",
+          "location": {
+            "left": "0",
+            "top": "0"
+          }
+        }
+      },
+      "outer": {
+        "fixed-left": {
+          "pattern": "external-pattern",
+          "location": {
+            "left": "0"
+          }
+        },
+        "fixed-right": {
+          "pattern": "external-pattern",
+          "location": {
+            "right": "0"
+          }
+        },
+        "fixed-top": {
+          "pattern": "external-pattern",
+          "location": {
+            "top": "0"
+          }
+        },
+        "fixed-bottom": {
+          "pattern": "external-pattern",
+          "location": {
+            "bottom": "0"
+          }
+        },
+        "movable-left": {
+          "pattern": "external-pattern",
+          "location": {
+            "left": "0..5"
+          }
+        },
+        "movable-right": {
+          "pattern": "external-pattern",
+          "location": {
+            "right": "1..3"
+          }
+        }
+      }
+    },
+    "child-pattern": {
+      "name": "Internal Child"
+    },
+    "external-pattern": {
+      "name": "External Pattern"
+    }
+  },
+  "blocks": [
+    {
+      "id": "block1",
+      "x": 400,
+      "y": 300,
+      "width": 200,
+      "height": 150,
+      "text": "main-pattern",
+      "fill": "#90caf9"
+    }
+  ]
+}

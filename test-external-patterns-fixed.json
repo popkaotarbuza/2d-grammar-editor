@@ -1,0 +1,59 @@
+{
+  "patterns": {
+    "main-pattern": {
+      "name": "Main Pattern with External",
+      "inner": {
+        "center": {
+          "pattern": "child-pattern",
+          "location": {
+            "left": "0..5",
+            "top": "0..5"
+          }
+        }
+      },
+      "outer": {
+        "left-external": {
+          "pattern": "external-pattern",
+          "location": {
+            "left": "0"
+          }
+        },
+        "right-external": {
+          "pattern": "external-pattern",
+          "location": {
+            "right": "0"
+          }
+        },
+        "top-external": {
+          "pattern": "external-pattern",
+          "location": {
+            "top": "0"
+          }
+        },
+        "bottom-external": {
+          "pattern": "external-pattern",
+          "location": {
+            "bottom": "0"
+          }
+        }
+      }
+    },
+    "child-pattern": {
+      "name": "Internal Child"
+    },
+    "external-pattern": {
+      "name": "External Pattern"
+    }
+  },
+  "blocks": [
+    {
+      "id": "block1",
+      "x": 400,
+      "y": 300,
+      "width": 200,
+      "height": 150,
+      "text": "main-pattern",
+      "fill": "#90caf9"
+    }
+  ]
+}
