@@ -24,7 +24,17 @@ import { containerStyles } from './styles.js';
 import { getInnerRectBounds, intersectsInnerArea, constrainToStage, calculateChildPosition, distributePatterns, findMaxLocationValues, calculateScaledGridSize, calculateDragBounds } from './utils.js';
 import './mainWindow.css';
 
+// локальная обёртка для компактного YAML
+const yamlStringify = (obj) => yamlStringifyOriginal(obj, {
+  indent: 2,      // читаемый отступ
+  flowLevel: 1,   // массивы на первом уровне будут в виде [a, b]
+});
+
+
 const App = () => {
+
+
+
   // ==================== Вычисление размеров ====================
   
   /**
@@ -58,6 +68,7 @@ const App = () => {
   const [selectedPattern, setSelectedPattern] = useState(null);
   const [blocks, setBlocks] = useState([]); // Блоки паттернов на холсте
   const [selectedIds, setSelectedIds] = useState([]);
+  const rightSidebarRef = useRef(null); // для кнопок добавления внутренних/внешних паттернов
   
   // Состояние для прямоугольника выделения (множественный выбор)
   const [selectionRectangle, setSelectionRectangle] = useState({
@@ -225,45 +236,136 @@ const App = () => {
     }
   };
 
+
+
+  const normalizeExtendsFormat = (patterns) => {
+  const clone = structuredClone(patterns);
+
+  for (const key in clone) {
+    const p = clone[key];
+    if (!p.extends) continue;
+
+    // Если extends был объектом типа {"0": "pattern_2"} → делаем нормальный массив
+    if (typeof p.extends === "object" && !Array.isArray(p.extends)) {
+      p.extends = Object.values(p.extends);
+    }
+
+    if (Array.isArray(p.extends)) {
+      // Создаём YAMLSeq для flow-стиля
+      const seq = new YAMLSeq();
+      seq.flow = true; // <--- Это заставляет YAML печатать [a, b]
+
+      // Добавляем элементы как Scalar
+      p.extends.forEach(e => seq.items.push(new Scalar(e)));
+
+      p.extends = seq;
+    }
+  }
+
+  return clone;
+};
+
+
+
+
+
+
+
+
+
+
   /**
    * Обработчик сохранения файла
    */
   const handleSave = () => {
-    const data = {
-      patterns: patterns,
+  // если нет имени — предупреждаем
+  if (!fileName || fileName.trim() === '') {
+    alert('Введите имя файла в поле "Название файла" или используйте "Сохранить как".');
+    return;
+  }
+
+  try {
+    const payload = {
+      patterns: normalizeExtendsFormat(patterns),
       blocks: blocks,
       fileName: fileName || 'untitled',
     };
-    downloadJSON(data, `${fileName || 'untitled'}.json`);
-  };
+
+    // сериализуем в YAML
+    const yamlText = yamlStringify(payload);
+
+    // имя файла — гарантируем расширение .yaml
+    const finalName = fileName.match(/\.(ya?ml|json)$/i)
+      ? fileName.replace(/\.(json|ya?ml)$/i, '.yaml')
+      : `${fileName}.yaml`;
+
+    const blob = new Blob([yamlText], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = finalName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Ошибка при сохранении:', err);
+    alert('Ошибка при сохранении: ' + (err.message || err));
+  }
+};
+
 
   /**
    * Обработчик сохранения как
    */
-  const handleSaveAs = () => {
-    const name = prompt('Введите название файла:', fileName || 'untitled');
-    if (name) {
-      setFileName(name);
-      const data = {
-        patterns: patterns,
-        blocks: blocks,
-        fileName: name,
-      };
-      downloadJSON(data, `${name}.json`);
-    }
-  };
+  const handleSaveAs = async () => {
+  try {
+    // Предлагаем пользователю выбрать место, имя и расширение
+    const fileHandle = await window.showSaveFilePicker({
+      suggestedName: fileName || 'untitled.yaml',
+      types: [
+        {
+          description: 'YAML файлы',
+          accept: { 'text/yaml': ['.yaml', '.yml'] }
+        },
+        {
+          description: 'JSON файлы',
+          accept: { 'application/json': ['.json'] }
+        }
+      ]
+    });
 
-  /**
-   * Обработчик экспорта
-   */
-  const handleExport = () => {
-    const data = {
-      patterns: patterns,
+    const ext = fileHandle.name.split('.').pop().toLowerCase();
+    const payload = {
+      patterns: normalizeExtendsFormat(patterns),
       blocks: blocks,
-      fileName: fileName || 'untitled',
     };
-    downloadJSON(data, `${fileName || 'export'}.json`);
-  };
+
+    let blob;
+    if (ext === 'json') {
+      blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json'
+      });
+    } else {
+      blob = new Blob([yamlStringify(payload)], {
+        type: 'text/yaml'
+      });
+    }
+
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+
+    setFileName(fileHandle.name.replace(/\.(json|ya?ml)$/i, ''));
+
+    console.log('Файл успешно сохранён:', fileHandle.name);
+
+  } catch (err) {
+    if (err.name === 'AbortError') return; // пользователь отменил
+    console.error('Ошибка Save As:', err);
+    alert('Ошибка при сохранении: ' + err.message);
+  }
+};
 
   /**
    * Утилита для скачивания JSON файла
@@ -959,11 +1061,11 @@ const App = () => {
       height: '100vh', 
       backgroundColor: COLORS.BACKGROUND 
     }}>
+
       <Header
         onOpen={handleOpen}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
-        onExport={handleExport}
         fileName={fileName}
         onFileNameChange={setFileName}
       />
@@ -1003,7 +1105,7 @@ const App = () => {
           {/* Кнопки создания паттернов */}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
             <button
-              onClick={createExternalPattern}
+              onClick={() => rightSidebarRef.current?.addInternalPattern()}
               style={{
                 backgroundColor: '#4CAF50',
                 color: '#fff',
@@ -1019,7 +1121,7 @@ const App = () => {
               Добавить внешний паттерн
             </button>
             <button
-              onClick={createInternalPattern}
+              onClick={() => rightSidebarRef.current?.addExternalPattern()}
               style={{
                 backgroundColor: '#2196F3',
                 color: '#fff',
@@ -1062,13 +1164,12 @@ const App = () => {
         {/* Правый sidebar */}
         <div style={containerStyles.sidebarWrapper}>
           <RightSidebar
-            selectedPattern={selectedPattern}
-            selectedPatternId={selectedPatternId}
-            onUpdatePattern={handleUpdatePattern}
-            onSavePattern={handleSavePattern}
-            onCancelPattern={handleCancelPattern}
-            allPatterns={patterns}
-          />
+              ref={rightSidebarRef}
+              selectedPattern={selectedPattern}
+              selectedPatternId={selectedPatternId}
+              onSavePattern={handleSavePattern}
+              allPatterns={patterns}
+            /> 
         </div>
       </div>
 

@@ -1,12 +1,24 @@
 import React from 'react';
 import { parse } from 'yaml';
 import { extractPatterns } from '../entities/import-yaml.js'
+import { cleanEmptyPatternComponents } from '../entities/import-yaml.js'
 
-const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange }) => {
+const Header = ({ onOpen, onSave, onSaveAs, fileName, onFileNameChange }) => {
     const handleOpen = () => {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.json,.yaml';
+
+        if (window.Cypress) {
+            input.style.position = 'fixed';
+            input.style.top = '0';
+            input.style.left = '0';
+            input.style.zIndex = '9999';
+            input.style.opacity = '0.01'; // почти невидим, но кликабелен
+            input.setAttribute('data-cy', 'file-input'); // для cy.get()
+            document.body.appendChild(input);
+        }
+
         input.onchange = (e) => {
             const file = e.target.files[0];
             if (file && onOpen) {
@@ -17,9 +29,14 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                         let content;
                         
                         if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
+                            
                             // Для YAML файлов: парсим и извлекаем паттерны
                             const parsedYaml = parse(fileContent);
-                            const patterns = extractPatterns(parsedYaml);
+                            const cleaned = cleanEmptyPatternComponents(parsedYaml);
+
+                            // Берём только корректный объект паттернов
+                            const patterns = extractPatterns(cleaned?.patterns || {});
+
                             content = {
                                 patterns: patterns,
                                 blocks: []
@@ -56,12 +73,6 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
         }
     };
 
-    const handleExport = () => { // Из JSON в YAML Обратно
-        if (onExport) {
-            onExport();
-        }
-    };
-
     return (
         <div style={{
             width: '100%',
@@ -89,6 +100,7 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                 boxSizing: 'border-box',
             }}>
                 <button
+                    className={'.open-button'}
                     onClick={handleOpen}
                     style={{
                         backgroundColor: 'transparent',
@@ -150,27 +162,6 @@ const Header = ({ onOpen, onSave, onSaveAs, onExport, fileName, onFileNameChange
                     }}
                 >
                     Сохранить как
-                </button>
-                <button
-                    onClick={handleExport}
-                    style={{
-                        backgroundColor: 'transparent',
-                        color: '#ffffff',
-                        border: 'none',
-                        padding: '8px 16px',
-                        fontSize: '22px',
-                        cursor: 'pointer',
-                        fontWeight: '500',
-                        fontFamily: 'Inter, sans-serif',
-                    }}
-                    onMouseEnter={(e) => {
-                        e.target.style.opacity = '0.8';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.target.style.opacity = '1';
-                    }}
-                >
-                    Экспорт
                 </button>
             </div>
 

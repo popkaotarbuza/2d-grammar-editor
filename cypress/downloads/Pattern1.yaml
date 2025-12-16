@@ -1,0 +1,10 @@
+patterns:
+  pattern_1:
+    name: Паттерн 1
+    description: ""
+    kind: external
+    components: {}
+    inner: {}
+    outer: {}
+blocks: []
+fileName: Pattern1

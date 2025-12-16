@@ -112,13 +112,86 @@ function extractPatterns(yamlData, patterns = {}) {
                 patterns[name][key] = value;
             }
         }
+
+        // === Обработка extends ===
+        if ('extends' in properties) {
+            const ext = properties.extends;
+            if (Array.isArray(ext)) {
+                patterns[name].extends = ext.slice(); // копия массива
+            } else if (typeof ext === 'string') {
+                patterns[name].extends = [ext]; // одна строка → массив из одного элемента
+            } else if (typeof ext === 'object' && ext !== null) {
+                // объект с индексами → преобразуем в массив по ключам 0,1,2…
+                patterns[name].extends = Object.keys(ext)
+                    .sort((a,b) => a - b)
+                    .map(k => ext[k]);
+            } else {
+                // всё остальное → пустой массив
+                patterns[name].extends = [];
+            }
+        } else {
+            patterns[name].extends = [];
+        }
+
+
     }
 
     return patterns;
 }
 
-// // === ЗАПУСК ===
-// const patterns = extractPatterns(rawYaml);
-// console.log("Переработанный YAML в JSON\n", patterns);
+
+
+
+
+/**
+ * cleanEmptyPatternComponents
+ * --------------------------------------
+ * Рекурсивно очищает объект YAML-паттернов от пустых компонентов:
+ *
+ * - Пропускает ключи со значением:
+ *   • null
+ *   • пустая строка ""
+ *   • undefined
+ *
+ * - Если значение — объект:
+ *     рекурсивно обрабатывает вложенность
+ *     если объект пуст после очистки → удаляет его
+ * 
+ * @param {Object} obj — исходный YAML-объект
+ * @returns {Object|null} — очищенный объект или null, если он пуст
+ */
+export function cleanEmptyPatternComponents(obj) {
+
+    // Если obj → не объект (например, строка, число, null) → выкидываем
+    if (!obj || typeof obj !== 'object') return null;
+
+    const cleaned = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+        
+        // Удаляем пустые элементы
+        if (value === null || value === '' || value === undefined) {
+            continue;
+        }
+
+        // Если вложенный объект — продолжаем рекурсию
+        if (typeof value === 'object') {
+            const cleanedChild = cleanEmptyPatternComponents(value);
+
+            // Если объект после очистки всё ещё содержательный → оставляем
+            if (cleanedChild !== null && Object.keys(cleanedChild).length > 0) {
+                cleaned[key] = cleanedChild;
+            }
+
+        } else {
+            // Примитивы оставляем как есть
+            cleaned[key] = value;
+        }
+    }
+
+    // Если весь объект пуст — возвращаем null (чтобы уровни без данных исчезали)
+    return Object.keys(cleaned).length > 0 ? cleaned : null;
+}
+
 
 export { extractPatterns };
