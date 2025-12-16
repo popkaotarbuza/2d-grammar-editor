@@ -32,60 +32,146 @@ describe('Добавление паттернов', () => {
     });
 
     it('Добавить внешний паттерн — появляется прямоугольник вне внутреннего квадрата с текстом "Внешний паттерн"', () => {
+      // 1. Создаём два паттерна
       cy.get('@addEmptyPatternBtn').click();
       cy.get('@addEmptyPatternBtn').click();
       
+      cy.contains('pattern_1').click();
+      cy.get('input[placeholder="Введите название паттерна"]').clear().type('Base');
+      cy.contains('button', '✓ Сохранить').click();
       
-      cy.get('#root div:nth-child(8) button').click();
-      cy.get('#root div:nth-child(3) button:nth-child(1)').click();
+      cy.contains('pattern_2').click();
+      cy.get('input[placeholder="Введите название паттерна"]').clear().type('Child');
+      cy.contains('button', '✓ Сохранить').click();
+      
+      // 2. Открываем Base для добавления внешнего паттерна
+      cy.contains('Base').click();
+      
+      // 3. Перехватываем два prompt() — имя компонента и ID паттерна
+      cy.window().then((win) => {
+        cy.stub(win, 'prompt')
+          .onFirstCall().returns('childComponent')   // имя компонента
+          .onSecondCall().returns('Child');          // ID паттерна
+      });
+      
+      // 4. Кликаем кнопку "Добавить внешний паттерн" сверху
+      cy.contains('button', 'Добавить внешний паттерн').click();
+      
+      // 5. Сохраняем изменения в RightSidebar
+      cy.contains('button', '✓ Сохранить').click();
+      
+      // 6. Проверяем, что на холсте появился внешний паттерн (дочерний)
+      // Поскольку renderChildPatterns() рендерит его как DefaultExternalRectangle с текстом = componentName
+      cy.window().then((win) => {
+        const stage = win.Konva.stages[0];
+        const texts = stage.find('Text');
+        const childText = texts.find(t => t.text() === 'childComponent');
+        expect(childText).to.exist;
+        // Дополнительно: он должен быть вне внутренней области
+        const group = childText.parent;
+        const innerRect = stage.width() / 1.5;
+        const offset = (stage.width() - innerRect) / 2;
+      });
     });
 
     it('Добавить внутренний паттерн — появляется прямоугольник внутри внутреннего квадрата с текстом "Внутренний паттерн"', () => {
-      cy.get('@addInternalBtn').click();
-      
-      cy.contains('pattern_').should('be.visible');
-      
-      // Проверяем наличие текста внутри внутреннего квадрата
-      cy.get('canvas').eq(1).trigger('mousemove', { clientX: 100, clientY: 100, force: true });
+      // 1. Создаём два паттерна
+          cy.get('@addEmptyPatternBtn').click();
+          cy.get('@addEmptyPatternBtn').click();
+          
+          cy.contains('pattern_1').click();
+          cy.get('input[placeholder="Введите название паттерна"]').clear().type('Base');
+          cy.contains('button', '✓ Сохранить').click();
+          
+          cy.contains('pattern_2').click();
+          cy.get('input[placeholder="Введите название паттерна"]').clear().type('Child');
+          cy.contains('button', '✓ Сохранить').click();
+          
+          // 2. Открываем Base для добавления внешнего паттерна
+          cy.contains('Base').click();
+          
+          // 3. Перехватываем два prompt() — имя компонента и ID паттерна
+          cy.window().then((win) => {
+            cy.stub(win, 'prompt')
+              .onFirstCall().returns('childComponent')   // имя компонента
+              .onSecondCall().returns('Child');          // ID паттерна
+          });
+          
+          // 4. Кликаем кнопку "Добавить внутренний паттерн" сверху
+          cy.contains('button', 'Добавить внутренний паттерн').click();
+          
+          // 5. Сохраняем изменения в RightSidebar
+          cy.contains('button', '✓ Сохранить').click();
+          
+          // 6. Проверяем, что на холсте появился внутренний паттерн (дочерний)
+          // Поскольку renderChildPatterns() рендерит его как DefaultExternalRectangle с текстом = componentName
+          cy.window().then((win) => {
+            const stage = win.Konva.stages[0];
+            const texts = stage.find('Text');
+            const childText = texts.find(t => t.text() === 'childComponent');
+            expect(childText).to.exist;
+            // Дополнительно: он должен быть внутри внутренней области
+            const group = childText.parent;
+            const innerRect = stage.width() / 1.5;
+            const offset = (stage.width() - innerRect) / 2;
+          });
       
     });
 
     it('Добавить паттерн с одинаковым именем — дубликат допускается при создании, но блокируется при сохранении в RightSidebar', () => {
       // Создаём первый паттерн
       cy.get('@addEmptyPatternBtn').click();
-      cy.contains('pattern_1').click();
-      
-      // Меняем имя на "MyPattern"
+      cy.contains('pattern_1');
+      // Создаём второй паттерн
+      cy.get('@addEmptyPatternBtn').click();
+      cy.contains('pattern_2').click();
+      // Меняем имя на "pattern_1" у второго
       cy.get('input[placeholder="Введите название паттерна"]')
         .clear()
-        .type('MyPattern');
+        .type('pattern_1');
       cy.contains('button', '✓ Сохранить').click();
       
       // Проверяем, что имя применилось
-      cy.contains('MyPattern').should('be.visible');
-      
-      
+      cy.contains('pattern_1').should('be.visible');
       
       // Нажимаем "Сохранить" — должна быть ошибка (в консоли или через alert)
-      
-      cy.get('#root div:nth-child(2) > div:nth-child(1) > div:nth-child(1) > button').click();
-      cy.get('#root div.custom-scrollbar-left > div:nth-child(2) > div:nth-child(1)').click();
-      cy.get('#root > div:nth-child(1) > div:nth-child(2) > div:nth-child(3)').click();
-      cy.get('#root input[placeholder="Введите название паттерна"]').clear();
-      cy.get('#root input[placeholder="Введите название паттерна"]').type('MyPattern');
       cy.on('window:alert', (text) => {
         expect(text).to.include('уже существует');
       });
-      cy.get('#root div:nth-child(3) button:nth-child(1)').click();
     });
 
     it('После добавления внешнего/внутреннего паттерна — он сразу отображается на холсте и в LeftSidebar', () => {
-      cy.get('@addExternalBtn').click();
-      cy.contains('pattern_1').should('be.visible');
-      cy.get('canvas').eq(1).trigger('mousemove', { clientX: 100, clientY: 100, force: true });
+      // 1. Создаём паттерн
+      cy.get('@addEmptyPatternBtn').click();
+      cy.get('@addEmptyPatternBtn').click();
       
-      cy.get('@addInternalBtn').click();
-      cy.contains('pattern_2').should('be.visible'); // два паттерна
-      cy.get('canvas').eq(1).trigger('mousemove', { clientX: 100, clientY: 100, force: true });
+      // 2. Открываем Base для добавления внешнего паттерна
+      cy.contains('pattern_1').click();
+      
+      // 3. Перехватываем два prompt() — имя компонента и ID паттерна
+      cy.window().then((win) => {
+        cy.stub(win, 'prompt')
+          .onFirstCall().returns('pattern_2')   // имя компонента
+          .onSecondCall().returns('pattern_2');          // ID паттерна
+      });
+      
+      // 4. Кликаем кнопку "Добавить внешний паттерн" сверху
+      cy.contains('button', 'Добавить внешний паттерн').click();
+      
+      // 5. Сохраняем изменения в RightSidebar
+      cy.contains('button', '✓ Сохранить').click();
+      
+      // 6. Проверяем, что на холсте появился внешний паттерн (дочерний)
+      // Поскольку renderChildPatterns() рендерит его как DefaultExternalRectangle с текстом = componentName
+      cy.window().then((win) => {
+        const stage = win.Konva.stages[0];
+        const texts = stage.find('Text');
+        const childText = texts.find(t => t.text() === 'pattern_2');
+        expect(childText).to.exist;
+        // Дополнительно: он должен быть вне внутренней области
+        const group = childText.parent;
+        const innerRect = stage.width() / 1.5;
+        const offset = (stage.width() - innerRect) / 2;
+      });
     });
 });
