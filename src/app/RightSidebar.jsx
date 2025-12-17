@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useState } from 'react';
 import { getPatternProperties, valueToString, stringToValue } from './utils.js';
 import { buttonStyles, inputStyles, textStyles } from './styles.js';
 import './mainWindow.css';
@@ -220,26 +220,9 @@ const LocationEditor = ({ location, onLocationChange }) => {
  * Компонент правого sidebar
  * Отображает и позволяет редактировать выбранный паттерн
  */
-const RightSidebar = forwardRef(
-    (
-        {
-            selectedPattern,
-            selectedPatternId,
-            onUpdatePattern,
-            onSavePattern,
-            onCancelPattern,
-            allPatterns = {}
-        },
-        ref
-    ) => {
-
-    
-    
-    console.log("RIGHT SIDEBAR pattern:", selectedPattern);  // ОТЛАДОЧНАЯ СТРОКА
-    
+const RightSidebar = ({ selectedPattern, selectedPatternId, onUpdatePattern, onSavePattern, onCancelPattern, allPatterns = {} }) => {
     const [localPattern, setLocalPattern] = useState(selectedPattern || {});
     const [localPatternId, setLocalPatternId] = useState(selectedPatternId || '');
-    const [originalPatternId, setOriginalPatternId] = useState(selectedPatternId || "");
 
     React.useEffect(() => {
         const pattern = selectedPattern || {};
@@ -252,20 +235,27 @@ const RightSidebar = forwardRef(
             outer: (pattern.outer && typeof pattern.outer === 'object' && !Array.isArray(pattern.outer)) 
                 ? pattern.outer 
                 : {},
-            extends: Array.isArray(pattern.extends) ? pattern.extends : [],
         };
-
-        console.log("INITIALIZED pattern:", initializedPattern); // ОТЛАДОЧНАЯ
-
         setLocalPattern(initializedPattern);
         setLocalPatternId(selectedPatternId || '');
     }, [selectedPattern, selectedPatternId]);
 
-    React.useEffect(() => {
-            setOriginalPatternId(selectedPatternId || "");
-        }, [selectedPatternId]);
-
-    const isEmpty = !selectedPattern || !selectedPatternId; // RETURN переместился
+    if (!selectedPattern || !selectedPatternId) {
+        return (
+            <div style={{
+                width: '300px',
+                minWidth: '300px',
+                flexShrink: 0,
+                backgroundColor: 'transparent',
+                padding: '0',
+                height: 'calc(100vh - 120px)',
+            }}>
+                <div style={{ color: '#999', textAlign: 'center', marginTop: '50%' }}>
+                    Выберите паттерн для редактирования
+                </div>
+            </div>
+        );
+    }
 
     // Функция для обновления свойства паттерна
     const updateProperty = (key, value) => {
@@ -275,46 +265,15 @@ const RightSidebar = forwardRef(
         }));
     };
 
-
-
-
-    // НЕЛЬЗЯ ДОБАВЛЯТЬ СВОЙСТВА С ТАКИМИ ИМЕНАМИ
-    const RESERVED_KEYS = ['extends', 'inner', 'outer'];
-
     // Функция для добавления нового свойства
     const addProperty = () => {
         const newKey = prompt('Введите название свойства:');
-        if (!newKey || !newKey.trim()) {
-            return; // пустая строка — игнор
-        }
-
-        const trimmedKey = newKey.trim();
-
-        // Проверка на спецсимволы (можно убрать если не нужно)
-        if (!/^[a-zA-Z0-9_]+$/.test(trimmedKey)) {
-            alert('Название свойства может содержать только буквы, цифры и _.');
-            return;
-        }
-
-        setLocalPattern(prev => {
-
-            // Запрещённые ключи
-            if (RESERVED_KEYS.includes(trimmedKey)) {
-                alert(`"${trimmedKey}" — зарезервированное имя и не может быть свойством.`);
-                return prev;
-            }
-
-            // Предотвращаем дубликаты
-            else if (trimmedKey in prev) {
-                alert('Свойство с таким именем уже существует.');
-                return prev;
-            }
-
-            return {
+        if (newKey && newKey.trim()) {
+            setLocalPattern(prev => ({
                 ...prev,
-                [trimmedKey]: '',
-            };
-        });
+                [newKey.trim()]: '',
+            }));
+        }
     };
 
     // Функция для удаления свойства
@@ -341,48 +300,36 @@ const RightSidebar = forwardRef(
             alert('Нет доступных паттернов для добавления');
             return;
         }
-
+        
         const componentName = prompt(`Введите имя компонента:`);
         if (!componentName || !componentName.trim()) {
             return;
         }
-
+        
         const patternId = prompt(`Введите ID паттерна (доступные: ${availablePatterns.join(', ')})`);
         if (patternId && patternId.trim() && availablePatterns.includes(patternId.trim())) {
             const trimmedName = componentName.trim();
             const trimmedId = patternId.trim();
-
             setLocalPattern(prev => {
-                const currentInner = (prev.inner && typeof prev.inner === 'object' && !Array.isArray(prev.inner))
-                    ? prev.inner
+                const currentInner = (prev.inner && typeof prev.inner === 'object' && !Array.isArray(prev.inner)) 
+                    ? prev.inner 
                     : {};
-
-                // Проверка на существование компонента с таким именем
-                if (currentInner[trimmedName]) {
+                if (!currentInner[trimmedName]) {
+                    return {
+                        ...prev,
+                        inner: {
+                            ...currentInner,
+                            [trimmedName]: {
+                                pattern: trimmedId,
+                                location: {}
+                            }
+                        }
+                    };
+                } else {
                     alert('Компонент с таким именем уже существует');
                     return prev;
                 }
-
-                // Проверка на уникальность паттерна внутри inner
-                const usedPatterns = Object.values(currentInner).map(item => item.pattern);
-                if (usedPatterns.includes(trimmedId)) {
-                    alert('Этот паттерн уже используется внутри компонента');
-                    return prev;
-                }
-
-                // Если всё ок, добавляем новый компонент
-                return {
-                    ...prev,
-                    inner: {
-                        ...currentInner,
-                        [trimmedName]: {
-                            pattern: trimmedId,
-                            location: {}
-                        }
-                    }
-                };
             });
-
         } else if (patternId && patternId.trim()) {
             alert('Паттерн с таким ID не найден');
         }
@@ -416,53 +363,40 @@ const RightSidebar = forwardRef(
             alert('Нет доступных паттернов для добавления');
             return;
         }
-
+        
         const componentName = prompt(`Введите имя компонента:`);
         if (!componentName || !componentName.trim()) {
             return;
         }
-
+        
         const patternId = prompt(`Введите ID паттерна (доступные: ${availablePatterns.join(', ')})`);
         if (patternId && patternId.trim() && availablePatterns.includes(patternId.trim())) {
             const trimmedName = componentName.trim();
             const trimmedId = patternId.trim();
-
             setLocalPattern(prev => {
-                const currentOuter = (prev.outer && typeof prev.outer === 'object' && !Array.isArray(prev.outer))
-                    ? prev.outer
+                const currentOuter = (prev.outer && typeof prev.outer === 'object' && !Array.isArray(prev.outer)) 
+                    ? prev.outer 
                     : {};
-
-                // Проверка на существование компонента с таким именем
-                if (currentOuter[trimmedName]) {
+                if (!currentOuter[trimmedName]) {
+                    return {
+                        ...prev,
+                        outer: {
+                            ...currentOuter,
+                            [trimmedName]: {
+                                pattern: trimmedId,
+                                location: {}
+                            }
+                        }
+                    };
+                } else {
                     alert('Компонент с таким именем уже существует');
                     return prev;
                 }
-
-                // Проверка на уникальность паттерна внутри outer
-                const usedPatterns = Object.values(currentOuter).map(item => item.pattern);
-                if (usedPatterns.includes(trimmedId)) {
-                    alert('Этот паттерн уже используется внутри внешнего компонента');
-                    return prev;
-                }
-
-                // Если всё ок, добавляем новый компонент
-                return {
-                    ...prev,
-                    outer: {
-                        ...currentOuter,
-                        [trimmedName]: {
-                            pattern: trimmedId,
-                            location: {}
-                        }
-                    }
-                };
             });
-
         } else if (patternId && patternId.trim()) {
             alert('Паттерн с таким ID не найден');
         }
     };
-
 
     const deleteExternalPattern = (componentName) => {
         if (confirm(`Удалить внешний паттерн "${componentName}"?`)) {
@@ -479,103 +413,6 @@ const RightSidebar = forwardRef(
             });
         }
     };
-
-
-
-
-
-    // === extends ===
-    const getExtends = () => Array.isArray(localPattern.extends) ? localPattern.extends : [];
-
-    const addExtend = () => {
-    const availablePatterns = Object.keys(allPatterns).filter(id => id !== selectedPatternId);
-    if (availablePatterns.length === 0) {
-        alert('Нет доступных паттернов для добавления');
-        return;
-    }
-
-    const patternId = prompt(`Введите ID паттерна для extends (доступные: ${availablePatterns.join(', ')})`);
-    if (!patternId || !patternId.trim()) return;
-
-    const trimmedId = patternId.trim();
-
-    if (!availablePatterns.includes(trimmedId)) {
-        alert('Паттерн с таким ID не найден');
-        return;
-    }
-
-    // Проверка: уже добавлен?
-    const currentExtends = getExtends();
-    if (currentExtends.includes(trimmedId)) {
-        alert('Этот паттерн уже добавлен в extends');
-        return;
-    }
-
-    // === ПРОВЕРКА НА ЦИКЛ ===
-    // Строим граф: кто на кого ссылается
-    const graph = {};
-    Object.keys(allPatterns).forEach(id => {
-        const ext = allPatterns[id].extends || [];
-        graph[id] = ext.filter(e => typeof e === 'string');
-    });
-
-    // Добавляем текущую попытку: selectedPatternId → trimmedId
-    const tempGraph = { ...graph, ...{[selectedPatternId]: [...graph[selectedPatternId] || [], trimmedId]}};
-
-    // Проверяем, есть ли путь от trimmedId обратно к selectedPatternId
-    const hasCycle = (start, target) => {
-        const visited = new Set();
-        const stack = [start];
-
-        while (stack.length > 0) {
-            const current = stack.pop();
-            if (current === target) return true;
-            if (visited.has(current)) continue;
-            visited.add(current);
-
-            const children = tempGraph[current] || [];
-            for (const child of children) {
-                stack.push(child);
-            }
-        }
-        return false;
-    };
-
-    if (hasCycle(trimmedId, selectedPatternId)) {
-        alert('Ошибка: создание циклической зависимости запрещено!');
-        return;
-    }
-
-    // Если всё ок — добавляем
-    setLocalPattern(prev => ({
-        ...prev,
-        extends: [...currentExtends, trimmedId]
-    }));
-};
-
-    const deleteExtend = (index) => {
-        setLocalPattern(prev => {
-            const list = [...getExtends()];
-            list.splice(index, 1);
-            return {
-                ...prev,
-                extends: list
-            };
-        });
-    };
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     const handleSave = () => {
         if (onSavePattern) {
@@ -598,199 +435,194 @@ const RightSidebar = forwardRef(
     };
 
     // Получаем все свойства паттерна для редактирования (кроме служебных)
-    const editableProperties = getPatternProperties(localPattern, ['id', 'inner', 'outer', 'extends']);
-
-
-    useImperativeHandle(ref, () => ({
-        addInternalPattern,
-        addExternalPattern,
-    }));
-
-
-
-
-
+    const editableProperties = getPatternProperties(localPattern, ['id', 'inner', 'outer']);
 
     return (
-    <div style={{
-        width: '300px',
-        minWidth: '300px',
-        flexShrink: 0,
-        backgroundColor: 'transparent',
-        padding: '0',
-        height: 'calc(100vh - 120px)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-    }}>
-        {isEmpty ? (
-            <div style={{ color: '#999', textAlign: 'center', marginTop: '50%' }}>
-                Выберите паттерн для редактирования
-            </div>
-        ) : (
-            <>
+        <div style={{
+            width: '300px',
+            minWidth: '300px',
+            flexShrink: 0,
+            backgroundColor: 'transparent',
+            padding: '0',
+            height: 'calc(100vh - 120px)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+        }}>
+            <div style={{
+                marginBottom: '20px',
+                flexShrink: 0,
+            }}>
                 <div style={{
-                    marginBottom: '20px',
-                    flexShrink: 0,
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    marginBottom: '8px',
+                    color: '#666',
                 }}>
-                    <div style={{
+                    Название паттерна:
+                </div>
+                <input
+                    type="text"
+                    value={localPatternId}
+                    onChange={(e) => setLocalPatternId(e.target.value)}
+                    placeholder="Введите название паттерна"
+                    style={{
+                        width: '100%',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd',
+                        fontSize: '16px',
                         fontWeight: 'bold',
-                        fontSize: '14px',
-                        marginBottom: '8px',
-                        color: '#666',
-                    }}>
-                        Название паттерна:
-                    </div>
-                    <input
-                        type="text"
-                        value={localPatternId}
-                        onChange={(e) => setLocalPatternId(e.target.value)}
-                        onBlur={() => {
-                            const newId = localPatternId.trim();
-                            if (!newId) {
-                                alert("Имя паттерна не может быть пустым");
-                                setLocalPatternId(originalPatternId);
-                                return;
-                            }
+                        fontFamily: 'inherit',
+                    }}
+                />
+            </div>
 
-                            if (newId !== originalPatternId && allPatterns[newId]) {
-                                alert("Паттерн с таким именем уже существует");
-                                setLocalPatternId(originalPatternId);
-                            }
-                        }}
-                        placeholder="Введите название паттерна"
-                        style={{
-                            width: '100%',
-                            padding: '8px',
-                            borderRadius: '4px',
-                            border: '1px solid #ddd',
-                            fontSize: '16px',
-                            fontWeight: 'bold',
-                            fontFamily: 'inherit',
-                        }}
-                    />
+            {/* Свойства паттерна */}
+            <div 
+                className="custom-scrollbar-inner"
+                style={{ 
+                    flex: 1,
+                    overflowY: 'auto',
+                    marginBottom: '20px',
+                }}
+            >
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '15px',
+                }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
+                        Свойства
+                    </div>
+                    <button
+                        onClick={addProperty}
+                        style={buttonStyles.icon}
+                    >
+                        +
+                    </button>
                 </div>
 
-                {/* Свойства паттерна */}
-                <div 
-                    className="custom-scrollbar-inner"
-                    style={{ 
-                        flex: 1,
-                        overflowY: 'auto',
-                        marginBottom: '20px',
-                    }}
-                >
-                    {/* Свойства */}
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '15px',
-                    }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
-                            Свойства
-                        </div>
-                        <button onClick={addProperty} style={buttonStyles.icon}>+</button>
-                    </div>
-
-                    {editableProperties.map(([key, value]) => (
-                        <div key={key} style={{
+                {editableProperties.map(([key, value]) => (
+                    <div
+                        key={key}
+                        style={{
                             marginBottom: '15px',
                             padding: '12px',
                             backgroundColor: '#ffffff',
                             borderRadius: '8px',
-                        }}>
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: '8px',
-                            }}>
-                                <div style={{ fontWeight: 'bold', color: '#333', fontSize: '14px' }}>{key}:</div>
-                                <button
-                                    onClick={() => deleteProperty(key)}
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        color: '#999',
-                                        fontSize: '14px',
-                                        padding: '2px 4px',
-                                    }}
-                                >
-                                    🗑️
-                                </button>
-                            </div>
-                            <textarea
-                                value={valueToString(value)}
-                                onChange={(e) => updateProperty(key, stringToValue(e.target.value, value))}
-                                placeholder={`Введите значение для ${key}`}
-                                style={inputStyles.textarea}
-                            />
-                        </div>
-                    ))}
-
-                    {editableProperties.length === 0 && (
+                        }}
+                    >
                         <div style={{
-                            padding: '20px',
-                            textAlign: 'center',
-                            color: '#999',
-                            fontStyle: 'italic',
-                        }}>
-                            Нет свойств. Нажмите + для добавления.
-                        </div>
-                    )}
-
-                    {/* Внутренние паттерны */}
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginTop: '30px',
-                        marginBottom: '15px',
-                    }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>Внутренние паттерны</div>
-                        <button onClick={addInternalPattern} style={buttonStyles.icon}>+</button>
-                    </div>
-
-                    {Object.entries(getInternalPatterns()).map(([componentName, componentData]) => (
-                        <div key={componentName} style={{
-                            marginBottom: '15px',
-                            padding: '12px',
-                            backgroundColor: '#ffffff',
-                            borderRadius: '8px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '8px',
                         }}>
                             <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: '8px',
+                                fontWeight: 'bold',
+                                color: '#333',
+                                fontSize: '14px',
                             }}>
-                                <div style={{ fontWeight: 'bold', color: '#333', fontSize: '14px' }}>{componentName}</div>
-                                <button onClick={() => deleteInternalPattern(componentName)} style={{
+                                {key}:
+                            </div>
+                            <button
+                                onClick={() => deleteProperty(key)}
+                                style={{
                                     backgroundColor: 'transparent',
                                     border: 'none',
                                     cursor: 'pointer',
                                     color: '#999',
                                     fontSize: '14px',
                                     padding: '2px 4px',
-                                }}>🗑️</button>
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-                                <strong>Pattern:</strong> {componentData.pattern || 'не указан'}
-                            </div>
-                            {componentData && <LocationDisplay location={componentData.location} />}
+                                }}
+                            >
+                                🗑️
+                            </button>
                         </div>
-                    ))}
+                        <textarea
+                            value={valueToString(value)}
+                            onChange={(e) => updateProperty(key, stringToValue(e.target.value, value))}
+                            placeholder={`Введите значение для ${key}`}
+                                    style={inputStyles.textarea}
+                        />
+                    </div>
+                ))}
 
-                    {Object.keys(getInternalPatterns()).length === 0 && (
+                {editableProperties.length === 0 && (
+                    <div style={{
+                        padding: '20px',
+                        textAlign: 'center',
+                        color: '#999',
+                        fontStyle: 'italic',
+                    }}>
+                        Нет свойств. Нажмите + для добавления.
+                    </div>
+                )}
+
+                {/* Внутренние паттерны */}
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: '30px',
+                    marginBottom: '15px',
+                }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
+                        Внутренние паттерны
+                    </div>
+                    <button
+                        onClick={addInternalPattern}
+                        style={buttonStyles.icon}
+                    >
+                        +
+                    </button>
+                </div>
+
+                {Object.entries(getInternalPatterns()).map(([componentName, componentData]) => (
+                    <div
+                        key={componentName}
+                        style={{
+                            marginBottom: '15px',
+                            padding: '12px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '8px',
+                        }}
+                    >
                         <div style={{
-                            padding: '20px',
-                            textAlign: 'center',
-                            color: '#999',
-                            fontStyle: 'italic',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '8px',
                         }}>
-                            Нет внутренних паттернов. Нажмите + для добавления.
+                            <div style={{
+                                fontWeight: 'bold',
+                                color: '#333',
+                                fontSize: '14px',
+                            }}>
+                                {componentName}
+                            </div>
+                            <button
+                                onClick={() => deleteInternalPattern(componentName)}
+                                style={{
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#999',
+                                    fontSize: '14px',
+                                    padding: '2px 4px',
+                                }}
+                            >
+                                🗑️
+                            </button>
+                        </div>
+                        <div style={{
+                            fontSize: '12px',
+                            color: '#666',
+                            marginBottom: '4px',
+                        }}>
+                            <strong>Pattern:</strong> {componentData.pattern || 'не указан'}
                         </div>
                         {componentData && (
                             <LocationEditor 
@@ -812,56 +644,79 @@ const RightSidebar = forwardRef(
                     </div>
                 ))}
 
-                    {/* Внешние паттерны */}
+                {Object.keys(getInternalPatterns()).length === 0 && (
                     <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginTop: '30px',
-                        marginBottom: '15px',
+                        padding: '20px',
+                        textAlign: 'center',
+                        color: '#999',
+                        fontStyle: 'italic',
                     }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>Внешние паттерны</div>
-                        <button onClick={addExternalPattern} style={buttonStyles.icon}>+</button>
+                        Нет внутренних паттернов. Нажмите + для добавления.
                     </div>
+                )}
 
-                    {Object.entries(getExternalPatterns()).map(([componentName, componentData]) => (
-                        <div key={componentName} style={{
+                {/* Внешние паттерны */}
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: '30px',
+                    marginBottom: '15px',
+                }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
+                        Внешние паттерны
+                    </div>
+                    <button
+                        onClick={addExternalPattern}
+                        style={buttonStyles.icon}
+                    >
+                        +
+                    </button>
+                </div>
+
+                {Object.entries(getExternalPatterns()).map(([componentName, componentData]) => (
+                    <div
+                        key={componentName}
+                        style={{
                             marginBottom: '15px',
                             padding: '12px',
                             backgroundColor: '#ffffff',
                             borderRadius: '8px',
+                        }}
+                    >
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '8px',
                         }}>
                             <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: '8px',
+                                fontWeight: 'bold',
+                                color: '#333',
+                                fontSize: '14px',
                             }}>
-                                <div style={{ fontWeight: 'bold', color: '#333', fontSize: '14px' }}>{componentName}</div>
-                                <button onClick={() => deleteExternalPattern(componentName)} style={{
+                                {componentName}
+                            </div>
+                            <button
+                                onClick={() => deleteExternalPattern(componentName)}
+                                style={{
                                     backgroundColor: 'transparent',
                                     border: 'none',
                                     cursor: 'pointer',
                                     color: '#999',
                                     fontSize: '14px',
                                     padding: '2px 4px',
-                                }}>🗑️</button>
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-                                <strong>Pattern:</strong> {componentData.pattern || 'не указан'}
-                            </div>
-                            {componentData && <LocationDisplay location={componentData.location} />}
+                                }}
+                            >
+                                🗑️
+                            </button>
                         </div>
-                    ))}
-
-                    {Object.keys(getExternalPatterns()).length === 0 && (
                         <div style={{
-                            padding: '20px',
-                            textAlign: 'center',
-                            color: '#999',
-                            fontStyle: 'italic',
+                            fontSize: '12px',
+                            color: '#666',
+                            marginBottom: '4px',
                         }}>
-                            Нет внешних паттернов. Нажмите + для добавления.
+                            <strong>Pattern:</strong> {componentData.pattern || 'не указан'}
                         </div>
                         {componentData && (
                             <LocationEditor 
@@ -883,68 +738,41 @@ const RightSidebar = forwardRef(
                     </div>
                 ))}
 
-                    {/* Extends */}
+                {Object.keys(getExternalPatterns()).length === 0 && (
                     <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginTop: '30px',
-                        marginBottom: '15px',
+                        padding: '20px',
+                        textAlign: 'center',
+                        color: '#999',
+                        fontStyle: 'italic',
                     }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>Extends</div>
-                        <button onClick={addExtend} style={buttonStyles.icon}>+</button>
+                        Нет внешних паттернов. Нажмите + для добавления.
                     </div>
+                )}
+            </div>
 
-                    {getExtends().map((patternId, index) => (
-                        <div key={index} style={{
-                            marginBottom: '10px',
-                            padding: '10px',
-                            backgroundColor: '#ffffff',
-                            borderRadius: '8px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                        }}>
-                            <span style={{ fontSize: '14px', color: '#333' }}>{patternId}</span>
-                            <button onClick={() => deleteExtend(index)} style={{
-                                backgroundColor: 'transparent',
-                                border: 'none',
-                                cursor: 'pointer',
-                                color: '#999',
-                                fontSize: '14px',
-                                padding: '2px 4px',
-                            }}>🗑️</button>
-                        </div>
-                    ))}
-
-                    {getExtends().length === 0 && (
-                        <div style={{
-                            padding: '20px',
-                            textAlign: 'center',
-                            color: '#999',
-                            fontStyle: 'italic',
-                        }}>
-                            Нет наследуемых паттернов. Нажмите + для добавления.
-                        </div>
-                    )}
-                </div>
-
-                {/* Кнопки сохранения */}
-                <div style={{
-                    flexShrink: 0,
-                    paddingTop: '20px',
-                    display: 'flex',
-                    gap: '10px',
-                    borderTop: '1px solid #eee',
-                }}>
-                    <button onClick={handleSave} style={buttonStyles.save}>✓ Сохранить</button>
-                    <button onClick={handleCancel} style={buttonStyles.cancel}>✕ Отмена</button>
-                </div>
-            </>
-        )}
-    </div>
-);
-
-});
+            {/* Кнопки сохранения - всегда видимы внизу */}
+            <div style={{
+                flexShrink: 0,
+                paddingTop: '20px',
+                display: 'flex',
+                gap: '10px',
+                borderTop: '1px solid #eee',
+            }}>
+                <button
+                    onClick={handleSave}
+                    style={buttonStyles.save}
+                >
+                    ✓ Сохранить
+                </button>
+                <button
+                    onClick={handleCancel}
+                    style={buttonStyles.cancel}
+                >
+                    ✕ Отмена
+                </button>
+            </div>
+        </div>
+    );
+};
 
 export { RightSidebar };

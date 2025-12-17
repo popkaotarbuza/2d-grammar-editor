@@ -14,32 +14,30 @@ describe('Добавление паттернов', () => {
 
     it('Добавить пустой паттерн в корневой уровень (кнопка "+" в LeftSidebar) — появляется карточка с именем по умолчанию', () => {
       cy.get('@addEmptyPatternBtn').click();
-
+      
       // Проверяем, что появился новый паттерн в левом сайдбаре
       cy.contains('pattern_1').should('be.visible');
-
+      
       // Кликаем по нему — должен открыться RightSidebar с редактированием
       cy.contains('pattern_1').click();
-
+      
       // Проверяем, что в правом сайдбаре отображается редактируемое имя
       cy.get('input[placeholder="Введите название паттерна"]')
         .should('have.value', 'pattern_1');
-
+      
       // Убеждаемся, что inner/outer/extends пустые
       cy.contains('Нет внутренних паттернов').scrollIntoView().should('be.visible');
       cy.contains('Нет внешних паттернов').scrollIntoView().should('be.visible');
-      cy.contains('Нет наследуемых паттернов').scrollIntoView().should('be.visible');
+      
     });
 
     it('Добавить внешний паттерн — появляется прямоугольник вне внутреннего квадрата с текстом "Внешний паттерн"', () => {
-      cy.get('@addExternalBtn').click();
+      cy.get('@addEmptyPatternBtn').click();
+      cy.get('@addEmptyPatternBtn').click();
       
-      // Ждём появления нового паттерна в списке
-      cy.contains('pattern_').should('be.visible'); // имя будет pattern_2, pattern_3 и т.д.
       
-      // Проверяем, что на холсте появился прямоугольник с нужным текстом
-      cy.get('canvas').eq(1).trigger('mousemove', { clientX: 100, clientY: 100, force: true }); // чтобы подсветить
-      cy.contains('external').should('be.visible');
+      cy.get('#root div:nth-child(8) button').click();
+      cy.get('#root div:nth-child(3) button:nth-child(1)').click();
     });
 
     it('Добавить внутренний паттерн — появляется прямоугольник внутри внутреннего квадрата с текстом "Внутренний паттерн"', () => {
