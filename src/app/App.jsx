@@ -720,12 +720,14 @@ const App = () => {
         height: DEFAULT_PATTERN.EXTERNAL.height,
       };
 
+      const stageBounds = { x: 0, y: 0, width: stageSize.width, height: stageSize.height };
       const positionAndSize = calculateChildPosition(
         componentData.location,
         parentBounds,
         childSize,
         false, // isInner
-        scaledGridSize // масштабированный размер клетки
+        scaledGridSize, // масштабированный размер клетки
+        stageBounds // границы сцены для ограничения внешних паттернов
       );
 
       patternInfos.push({
@@ -943,11 +945,14 @@ const App = () => {
         ? { width: DEFAULT_PATTERN.INTERNAL.width, height: DEFAULT_PATTERN.INTERNAL.height }
         : { width: DEFAULT_PATTERN.EXTERNAL.width, height: DEFAULT_PATTERN.EXTERNAL.height };
       
+      const stageBounds = { x: 0, y: 0, width: stageSize.width, height: stageSize.height };
       const newPositionAndSize = calculateChildPosition(
         newLocation,
         parentBounds,
         childSize,
-        type === 'internal'
+        type === 'internal',
+        null, // gridSize не нужен для пересчета позиции
+        stageBounds
       );
       
       // Обновляем selectedChildPattern с новыми координатами

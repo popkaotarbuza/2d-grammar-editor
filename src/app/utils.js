@@ -441,60 +441,107 @@ export const calculateDragBounds = (location, parentBounds, childSize, gridSize,
     let minY = stage.y;
     let maxY = stage.y + stage.height - childSize.height;
 
-    // Ограничиваем перемещение на основе location
+    // Строгие ограничения перемещения на основе location
+    // Паттерн может перемещаться только в той области, которая соответствует его location
+    
+    // Горизонтальные ограничения
     if (hasLeft) {
-      // Паттерн слева от внутренней области
+      // Паттерн ТОЛЬКО слева от внутренней области
       const leftBoundary = parentBounds.x - childSize.width;
       if (leftIsZero) {
-        // При left=0 паттерн намертво прижат к левой границе
         minX = maxX = leftBoundary;
       } else {
-        // При left>0 паттерн может перемещаться в диапазоне
         minX = leftBoundary - leftMax;
         maxX = leftBoundary - leftMin;
       }
+      // Строго запрещаем перемещение в другие области
+      maxX = Math.min(maxX, parentBounds.x - childSize.width);
     } else if (hasRight) {
-      // Паттерн справа от внутренней области
+      // Паттерн ТОЛЬКО справа от внутренней области
       const rightBoundary = parentBounds.x + parentBounds.width;
       if (rightIsZero) {
-        // При right=0 паттерн намертво прижат к правой границе
         minX = maxX = rightBoundary;
       } else {
-        // При right>0 паттерн может перемещаться в диапазоне
         minX = rightBoundary + rightMin;
         maxX = rightBoundary + rightMax;
       }
+      // Строго запрещаем перемещение в другие области
+      minX = Math.max(minX, parentBounds.x + parentBounds.width);
+    } else {
+      // Если не задан ни left, ни right - может перемещаться по всей ширине
+      // НО не может заходить во внутреннюю область
+      minX = stage.x;
+      maxX = stage.x + stage.width - childSize.width;
     }
 
+    // Вертикальные ограничения
     if (hasTop) {
-      // Паттерн сверху от внутренней области
+      // Паттерн ТОЛЬКО сверху от внутренней области
       const topBoundary = parentBounds.y - childSize.height;
       if (topIsZero) {
-        // При top=0 паттерн намертво прижат к верхней границе
         minY = maxY = topBoundary;
       } else {
-        // При top>0 паттерн может перемещаться в диапазоне
         minY = topBoundary - topMax;
         maxY = topBoundary - topMin;
       }
+      // Строго запрещаем перемещение в другие области
+      maxY = Math.min(maxY, parentBounds.y - childSize.height);
     } else if (hasBottom) {
-      // Паттерн снизу от внутренней области
+      // Паттерн ТОЛЬКО снизу от внутренней области
       const bottomBoundary = parentBounds.y + parentBounds.height;
       if (bottomIsZero) {
-        // При bottom=0 паттерн намертво прижат к нижней границе
         minY = maxY = bottomBoundary;
       } else {
-        // При bottom>0 паттерн может перемещаться в диапазоне
         minY = bottomBoundary + bottomMin;
         maxY = bottomBoundary + bottomMax;
       }
+      // Строго запрещаем перемещение в другие области
+      minY = Math.max(minY, parentBounds.y + parentBounds.height);
+    } else {
+      // Если не задан ни top, ни bottom - может перемещаться по всей высоте
+      // НО не может заходить во внутреннюю область
+      minY = stage.y;
+      maxY = stage.y + stage.height - childSize.height;
+    }
+
+    // Дополнительные ограничения для комбинаций сторон
+    // Например, если задан right + top, паттерн может быть только в правом верхнем углу
+    if (hasLeft && hasTop) {
+      // Левый верхний угол - паттерн слева И сверху одновременно
+      // Дополнительных ограничений не нужно, уже ограничен выше
+    } else if (hasRight && hasTop) {
+      // Правый верхний угол - паттерн справа И сверху одновременно
+      // Дополнительных ограничений не нужно, уже ограничен выше
+    } else if (hasLeft && hasBottom) {
+      // Левый нижний угол
+      // Дополнительных ограничений не нужно, уже ограничен выше
+    } else if (hasRight && hasBottom) {
+      // Правый нижний угол
+      // Дополнительных ограничений не нужно, уже ограничен выше
     }
 
     // Убеждаемся, что не выходим за границы сцены
-    minX = Math.max(minX, stage.x);
-    maxX = Math.min(maxX, stage.x + stage.width - childSize.width);
-    minY = Math.max(minY, stage.y);
-    maxY = Math.min(maxY, stage.y + stage.height - childSize.height);
+    // Для внешних паттернов это критично, чтобы они оставались видимыми
+    const stageMinX = stage.x;
+    const stageMaxX = stage.x + stage.width - childSize.width;
+    const stageMinY = stage.y;
+    const stageMaxY = stage.y + stage.height - childSize.height;
+    
+    minX = Math.max(minX, stageMinX);
+    maxX = Math.min(maxX, stageMaxX);
+    minY = Math.max(minY, stageMinY);
+    maxY = Math.min(maxY, stageMaxY);
+    
+    // Если после ограничений minX > maxX или minY > maxY, 
+    // значит паттерн не помещается - ограничиваем границами сцены
+    if (minX > maxX) {
+      minX = stageMinX;
+      maxX = stageMaxX;
+    }
+    if (minY > maxY) {
+      minY = stageMinY;
+      maxY = stageMaxY;
+    }
 
     return {
       minX,
@@ -521,7 +568,7 @@ export const calculateDragBounds = (location, parentBounds, childSize, gridSize,
  * @param {Object} gridSize - Размеры клетки {gridSizeX, gridSizeY} (опционально)
  * @returns {Object} Позиция и размер дочернего паттерна {x, y, width, height}
  */
-export const calculateChildPosition = (location, parentBounds, childSize, isInner = true, gridSize = null) => {
+export const calculateChildPosition = (location, parentBounds, childSize, isInner = true, gridSize = null, stageBounds = null) => {
   if (!location || typeof location !== 'object') {
     // Если location не задан, размещаем по центру
     return {
@@ -535,6 +582,9 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
   // Используем переданный gridSize или стандартный
   const actualGridSizeX = gridSize?.gridSizeX || SIZES.GRID_SIZE;
   const actualGridSizeY = gridSize?.gridSizeY || SIZES.GRID_SIZE;
+  
+  // Границы сцены для ограничения внешних паттернов
+  const stage = stageBounds || { x: 0, y: 0, width: 1000, height: 700 };
   
   // Нормализуем location: обрабатываем margin-top, padding-left и т.д. как обычные top, left
   const normalizedLocation = {};
@@ -659,6 +709,9 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
       // При left=0 паттерн прижат к левой границе, при left>0 отступает влево
       x = parentBounds.x - childSize.width - left;
       
+      // Ограничиваем левой границей сцены
+      x = Math.max(stage.x, x);
+      
       // Определяем вертикальную позицию
       if (leftIsZero && topIsZero && bottomIsZero) {
         // Растягиваем по высоте
@@ -671,11 +724,13 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
         // Прижимаем к нижнему левому углу
         y = parentBounds.y + parentBounds.height - childSize.height;
       } else if (hasTop) {
-        // Позиционируем по top
+        // Позиционируем по top (отступ от верхней границы внутренней области)
         y = parentBounds.y + top;
+        y = Math.max(stage.y, Math.min(y, stage.y + stage.height - childSize.height));
       } else if (hasBottom) {
-        // Позиционируем по bottom
+        // Позиционируем по bottom (отступ от нижней границы внутренней области)
         y = parentBounds.y + parentBounds.height - childSize.height - bottom;
+        y = Math.max(stage.y, Math.min(y, stage.y + stage.height - childSize.height));
       } else {
         // По умолчанию - по центру вертикально
         y = parentBounds.y + (parentBounds.height - childSize.height) / 2;
@@ -684,6 +739,9 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
       // Размещаем справа от внутренней области
       // При right=0 паттерн прижат к правой границе, при right>0 отступает вправо
       x = parentBounds.x + parentBounds.width + right;
+      
+      // Ограничиваем правой границей сцены
+      x = Math.min(stage.x + stage.width - childSize.width, x);
       
       // Определяем вертикальную позицию
       if (rightIsZero && topIsZero && bottomIsZero) {
@@ -695,8 +753,10 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
         y = parentBounds.y + parentBounds.height - childSize.height;
       } else if (hasTop) {
         y = parentBounds.y + top;
+        y = Math.max(stage.y, Math.min(y, stage.y + stage.height - childSize.height));
       } else if (hasBottom) {
         y = parentBounds.y + parentBounds.height - childSize.height - bottom;
+        y = Math.max(stage.y, Math.min(y, stage.y + stage.height - childSize.height));
       } else {
         y = parentBounds.y + (parentBounds.height - childSize.height) / 2;
       }
@@ -704,6 +764,9 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
       // Размещаем сверху от внутренней области
       // При top=0 паттерн прижат к верхней границе, при top>0 отступает вверх
       y = parentBounds.y - childSize.height - top;
+      
+      // Ограничиваем верхней границей сцены
+      y = Math.max(stage.y, y);
       
       // Определяем горизонтальную позицию
       if (topIsZero && leftIsZero && rightIsZero) {
@@ -713,6 +776,12 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
         x = parentBounds.x;
       } else if (topIsZero && rightIsZero) {
         x = parentBounds.x + parentBounds.width - childSize.width;
+      } else if (hasLeft) {
+        x = parentBounds.x + left;
+        x = Math.max(stage.x, Math.min(x, stage.x + stage.width - childSize.width));
+      } else if (hasRight) {
+        x = parentBounds.x + parentBounds.width - childSize.width - right;
+        x = Math.max(stage.x, Math.min(x, stage.x + stage.width - childSize.width));
       } else {
         // По умолчанию - по центру горизонтально
         x = parentBounds.x + (parentBounds.width - childSize.width) / 2;
@@ -722,6 +791,9 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
       // При bottom=0 паттерн прижат к нижней границе, при bottom>0 отступает вниз
       y = parentBounds.y + parentBounds.height + bottom;
       
+      // Ограничиваем нижней границей сцены
+      y = Math.min(stage.y + stage.height - childSize.height, y);
+      
       // Определяем горизонтальную позицию
       if (bottomIsZero && leftIsZero && rightIsZero) {
         x = parentBounds.x;
@@ -730,6 +802,12 @@ export const calculateChildPosition = (location, parentBounds, childSize, isInne
         x = parentBounds.x;
       } else if (bottomIsZero && rightIsZero) {
         x = parentBounds.x + parentBounds.width - childSize.width;
+      } else if (hasLeft) {
+        x = parentBounds.x + left;
+        x = Math.max(stage.x, Math.min(x, stage.x + stage.width - childSize.width));
+      } else if (hasRight) {
+        x = parentBounds.x + parentBounds.width - childSize.width - right;
+        x = Math.max(stage.x, Math.min(x, stage.x + stage.width - childSize.width));
       } else {
         // По умолчанию - по центру горизонтально
         x = parentBounds.x + (parentBounds.width - childSize.width) / 2;

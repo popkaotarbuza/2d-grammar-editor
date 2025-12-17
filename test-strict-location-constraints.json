@@ -1,0 +1,73 @@
+{
+  "patterns": {
+    "main-pattern": {
+      "name": "Main Pattern with Strict Constraints",
+      "inner": {
+        "center": {
+          "pattern": "child-pattern",
+          "location": {
+            "left": "0..3",
+            "top": "0..3"
+          }
+        }
+      },
+      "outer": {
+        "right-only": {
+          "pattern": "external-pattern",
+          "location": {
+            "right": "2"
+          }
+        },
+        "left-only": {
+          "pattern": "external-pattern",
+          "location": {
+            "left": "1"
+          }
+        },
+        "top-only": {
+          "pattern": "external-pattern",
+          "location": {
+            "top": "1"
+          }
+        },
+        "bottom-only": {
+          "pattern": "external-pattern",
+          "location": {
+            "bottom": "1"
+          }
+        },
+        "right-top-corner": {
+          "pattern": "external-pattern",
+          "location": {
+            "right": "1",
+            "top": "2"
+          }
+        },
+        "left-bottom-corner": {
+          "pattern": "external-pattern",
+          "location": {
+            "left": "2",
+            "bottom": "1"
+          }
+        }
+      }
+    },
+    "child-pattern": {
+      "name": "Internal Child"
+    },
+    "external-pattern": {
+      "name": "External Pattern"
+    }
+  },
+  "blocks": [
+    {
+      "id": "block1",
+      "x": 400,
+      "y": 300,
+      "width": 200,
+      "height": 150,
+      "text": "main-pattern",
+      "fill": "#90caf9"
+    }
+  ]
+}

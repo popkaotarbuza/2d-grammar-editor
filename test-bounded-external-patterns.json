@@ -1,0 +1,83 @@
+{
+  "patterns": {
+    "main-pattern": {
+      "name": "Main Pattern with Bounded External",
+      "inner": {
+        "center": {
+          "pattern": "child-pattern",
+          "location": {
+            "left": "0..2",
+            "top": "0..2"
+          }
+        }
+      },
+      "outer": {
+        "left-close": {
+          "pattern": "external-pattern",
+          "location": {
+            "left": "0"
+          }
+        },
+        "left-far": {
+          "pattern": "external-pattern",
+          "location": {
+            "left": "5"
+          }
+        },
+        "right-close": {
+          "pattern": "external-pattern",
+          "location": {
+            "right": "0"
+          }
+        },
+        "right-far": {
+          "pattern": "external-pattern",
+          "location": {
+            "right": "10"
+          }
+        },
+        "top-close": {
+          "pattern": "external-pattern",
+          "location": {
+            "top": "0"
+          }
+        },
+        "top-far": {
+          "pattern": "external-pattern",
+          "location": {
+            "top": "8"
+          }
+        },
+        "bottom-close": {
+          "pattern": "external-pattern",
+          "location": {
+            "bottom": "0"
+          }
+        },
+        "bottom-far": {
+          "pattern": "external-pattern",
+          "location": {
+            "bottom": "15"
+          }
+        }
+      }
+    },
+    "child-pattern": {
+      "name": "Internal Child"
+    },
+    "external-pattern": {
+      "name": "External Pattern"
+    }
+  },
+  "blocks": [
+    {
+      "id": "block1",
+      "x": 400,
+      "y": 300,
+      "width": 200,
+      "height": 150,
+      "text": "main-pattern",
+      "fill": "#90caf9"
+    }
+  ]
+}
